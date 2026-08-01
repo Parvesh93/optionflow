@@ -1,32 +1,79 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Outlet, useLoaderData, useRouteError } from "react-router";
+import {
+  Link,
+  Outlet,
+  useLoaderData,
+  useRouteError,
+} from "react-router";
+
+import { NavMenu } from "@shopify/app-bridge-react";
+import {
+  AppProvider as ShopifyAppProvider,
+} from "@shopify/shopify-app-react-router/react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { AppProvider } from "@shopify/shopify-app-react-router/react";
+
+import {
+  AppProvider as PolarisAppProvider,
+} from "@shopify/polaris";
+
+import "@shopify/polaris/build/esm/styles.css";
 
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
 
-  // eslint-disable-next-line no-undef
-  return { apiKey: process.env.SHOPIFY_API_KEY || "" };
+  const enTranslations = await import(
+    "@shopify/polaris/locales/en.json"
+  );
+
+  return {
+    apiKey: process.env.SHOPIFY_API_KEY || "",
+    polarisTranslations: enTranslations.default,
+  };
 };
 
 export default function App() {
-  const { apiKey } = useLoaderData<typeof loader>();
+  const {
+    apiKey,
+    polarisTranslations,
+  } = useLoaderData<typeof loader>();
 
   return (
-    <AppProvider embedded apiKey={apiKey}>
-      <s-app-nav>
-        <s-link href="/app">Home</s-link>
-        <s-link href="/app/additional">Additional page</s-link>
-      </s-app-nav>
-      <Outlet />
-    </AppProvider>
+    <ShopifyAppProvider embedded apiKey={apiKey}>
+      <PolarisAppProvider i18n={polarisTranslations}>
+        <NavMenu>
+          <Link to="/app" rel="home">
+            Dashboard
+          </Link>
+
+          <Link to="/app/option-sets">
+            Option Sets
+          </Link>
+
+          <Link to="/app/templates">
+            Templates
+          </Link>
+
+          <Link to="/app/analytics">
+            Analytics
+          </Link>
+
+          <Link to="/app/settings">
+            Settings
+          </Link>
+
+          <Link to="/app/billing">
+            Plans
+          </Link>
+        </NavMenu>
+
+        <Outlet />
+      </PolarisAppProvider>
+    </ShopifyAppProvider>
   );
 }
 
-// Shopify needs React Router to catch some thrown responses, so that their headers are included in the response.
 export function ErrorBoundary() {
   return boundary.error(useRouteError());
 }
