@@ -43,11 +43,38 @@ export const productAssignmentService = {
   async searchProducts(
     admin: AdminGraphqlClient,
     search: string,
-  ): Promise<ShopifyProductDTO[]> {
+    pagination?: {
+      after?: string;
+      before?: string;
+    },
+  ): Promise<{
+    products: ShopifyProductDTO[];
+    pageInfo: {
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+      startCursor: string | null;
+      endCursor: string | null;
+    };
+  }> {
+    const isPrevious = Boolean(pagination?.before);
+
     const response = await admin.graphql(
       `#graphql
-        query OptionFlowProductSearch($query: String) {
-          products(first: 20, query: $query, sortKey: TITLE) {
+        query OptionFlowProductSearch(
+          $query: String
+          $first: Int
+          $after: String
+          $last: Int
+          $before: String
+        ) {
+          products(
+            first: $first
+            after: $after
+            last: $last
+            before: $before
+            query: $query
+            sortKey: TITLE
+          ) {
             nodes {
               id
               title
@@ -57,12 +84,26 @@ export const productAssignmentService = {
                 url
               }
             }
+            pageInfo {
+              hasNextPage
+              hasPreviousPage
+              startCursor
+              endCursor
+            }
           }
         }
       `,
       {
         variables: {
           query: search.trim() || null,
+          first: isPrevious ? null : 50,
+          after: isPrevious
+            ? null
+            : pagination?.after || null,
+          last: isPrevious ? 50 : null,
+          before: isPrevious
+            ? pagination?.before || null
+            : null,
         },
       },
     );
@@ -79,22 +120,50 @@ export const productAssignmentService = {
               url?: string | null;
             } | null;
           }>;
+          pageInfo?: {
+            hasNextPage: boolean;
+            hasPreviousPage: boolean;
+            startCursor?: string | null;
+            endCursor?: string | null;
+          };
         };
       };
       errors?: unknown;
     };
 
-    if (!json.data?.products?.nodes) {
-      return [];
+    const connection = json.data?.products;
+
+    if (!connection?.nodes) {
+      return {
+        products: [],
+        pageInfo: {
+          hasNextPage: false,
+          hasPreviousPage: false,
+          startCursor: null,
+          endCursor: null,
+        },
+      };
     }
 
-    return json.data.products.nodes.map((product) => ({
-      id: product.id,
-      title: product.title,
-      handle: product.handle,
-      status: product.status,
-      imageUrl: product.featuredImage?.url ?? null,
-    }));
+    return {
+      products: connection.nodes.map((product) => ({
+        id: product.id,
+        title: product.title,
+        handle: product.handle,
+        status: product.status,
+        imageUrl: product.featuredImage?.url ?? null,
+      })),
+      pageInfo: {
+        hasNextPage:
+          connection.pageInfo?.hasNextPage ?? false,
+        hasPreviousPage:
+          connection.pageInfo?.hasPreviousPage ?? false,
+        startCursor:
+          connection.pageInfo?.startCursor ?? null,
+        endCursor:
+          connection.pageInfo?.endCursor ?? null,
+      },
+    };
   },
 
   async assign(
