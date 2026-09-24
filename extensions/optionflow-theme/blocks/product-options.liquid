@@ -1,7 +1,7 @@
 <div
   class="optionflow-product-options"
   data-optionflow-root
-  data-optionflow-handle="{{ block.settings.option_set_handle | escape }}"
+  data-optionflow-product-gid="gid://shopify/Product/{{ product.id }}"
   data-optionflow-show-title="{{ block.settings.show_title }}"
 >
   <div class="optionflow-product-options__loading">
@@ -16,12 +16,6 @@
   "javascript": "optionflow.js",
   "stylesheet": "optionflow.css",
   "settings": [
-    {
-      "type": "text",
-      "id": "option_set_handle",
-      "label": "Option set handle",
-      "info": "Copy the handle from the OptionFlow option set editor."
-    },
     {
       "type": "checkbox",
       "id": "show_title",
