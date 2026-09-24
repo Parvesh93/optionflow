@@ -17,6 +17,7 @@ import {
   useActionData,
   useLoaderData,
   useNavigation,
+  useSearchParams,
 } from "react-router";
 
 import { OFPage } from "~/components/ui";
@@ -45,6 +46,10 @@ export default function EditOptionSetPage() {
     >();
 
   const navigation = useNavigation();
+  const [searchParams] = useSearchParams();
+
+  const wasDuplicated =
+    searchParams.get("duplicated") === "1";
 
   const isSubmitting =
     navigation.state === "submitting";
@@ -81,6 +86,17 @@ export default function EditOptionSetPage() {
       }}
     >
       <BlockStack gap="500">
+        {wasDuplicated ? (
+          <Banner
+            tone="success"
+            title="Option set duplicated"
+          >
+            <p>
+              A draft copy was created. Review it and save any changes.
+            </p>
+          </Banner>
+        ) : null}
+
         {actionData?.formError ? (
           <Banner
             tone="critical"
@@ -221,9 +237,22 @@ export default function EditOptionSetPage() {
             </Card>
 
             <InlineStack
-              align="end"
+              align="space-between"
               gap="300"
             >
+              <Form
+                method="post"
+                action={`/app/option-sets/${optionSet.id}/duplicate`}
+              >
+                <Button
+                  submit
+                  disabled={isSubmitting}
+                >
+                  Duplicate
+                </Button>
+              </Form>
+
+              <InlineStack gap="300">
               <Button
                 url="/app/option-sets"
                 disabled={isSubmitting}
@@ -238,6 +267,7 @@ export default function EditOptionSetPage() {
               >
                 Save changes
               </Button>
+              </InlineStack>
             </InlineStack>
           </BlockStack>
         </Form>
