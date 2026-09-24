@@ -8,6 +8,9 @@ import {
   EmptyState,
   IndexTable,
   InlineStack,
+  Modal,
+  Popover,
+  ActionList,
   Select,
   Text,
   TextField,
@@ -16,6 +19,7 @@ import {
 
 import {
   Form,
+  useFetcher,
   useLoaderData,
   useNavigate,
   useSearchParams,
@@ -26,6 +30,114 @@ import { OFPage } from "~/components/ui";
 
 import { OptionSetStatusBadge } from "../components/table/OptionSetStatusBadge";
 import type { loader } from "../loader.server";
+
+type OptionSetRowActionsProps = {
+  optionSetId: string;
+  status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  onEdit: () => void;
+};
+
+function OptionSetRowActions({
+  optionSetId,
+  status,
+  onEdit,
+}: OptionSetRowActionsProps) {
+  const fetcher = useFetcher();
+  const [active, setActive] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const busy = fetcher.state !== "idle";
+
+  const submitAction = (action: "duplicate" | "archive" | "restore") => {
+    fetcher.submit(
+      {},
+      {
+        method: "post",
+        action: `/app/option-sets/${optionSetId}/${action}`,
+      },
+    );
+    setActive(false);
+  };
+
+  return (
+    <div onClick={(event) => event.stopPropagation()}>
+      <Popover
+        active={active}
+        activator={
+          <Button
+            onClick={() => setActive((value) => !value)}
+            disclosure
+            disabled={busy}
+          >
+            Actions
+          </Button>
+        }
+        onClose={() => setActive(false)}
+      >
+        <ActionList
+          items={[
+            {
+              content: "Edit",
+              onAction: () => {
+                setActive(false);
+                onEdit();
+              },
+            },
+            {
+              content: "Duplicate",
+              onAction: () => submitAction("duplicate"),
+            },
+            {
+              content: status === "ARCHIVED" ? "Restore" : "Archive",
+              onAction: () =>
+                submitAction(status === "ARCHIVED" ? "restore" : "archive"),
+            },
+            {
+              content: "Delete",
+              destructive: true,
+              onAction: () => {
+                setActive(false);
+                setDeleteOpen(true);
+              },
+            },
+          ]}
+        />
+      </Popover>
+
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Delete option set?"
+        primaryAction={{
+          content: "Delete option set",
+          destructive: true,
+          loading: busy,
+          onAction: () => {
+            fetcher.submit(
+              {},
+              {
+                method: "post",
+                action: `/app/option-sets/${optionSetId}/delete`,
+              },
+            );
+          },
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: () => setDeleteOpen(false),
+            disabled: busy,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <Text as="p">
+            This option set will be removed from the active records.
+          </Text>
+        </Modal.Section>
+      </Modal>
+    </div>
+  );
+}
 
 type OptionSetFiltersProps = {
   initialSearch: string;
@@ -188,7 +300,9 @@ export default function OptionSetsPage() {
   } = useLoaderData<typeof loader>();
 
   const navigate = useNavigate();
+  const bulkFetcher = useFetcher();
   const [searchParams] = useSearchParams();
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const wasCreated = Boolean(
     searchParams.get("created"),
@@ -210,6 +324,9 @@ export default function OptionSetsPage() {
     searchParams.get("deleted"),
   );
 
+  const bulkAction = searchParams.get("bulk");
+  const bulkCount = Number(searchParams.get("count") || "0");
+
   const hasFilters =
     Boolean(filters.search) ||
     Boolean(filters.status) ||
@@ -220,6 +337,20 @@ export default function OptionSetsPage() {
     allResourcesSelected,
     handleSelectionChange,
   } = useIndexResourceState(optionSets);
+
+  function submitBulkAction(action: "archive" | "restore" | "delete") {
+    const formData = new FormData();
+    formData.set("bulkAction", action);
+
+    for (const id of selectedResources) {
+      formData.append("optionSetIds", id);
+    }
+
+    bulkFetcher.submit(formData, {
+      method: "post",
+      action: "/app/option-sets/bulk",
+    });
+  }
 
   function buildPageUrl(page: number) {
     const params = new URLSearchParams();
@@ -295,6 +426,16 @@ export default function OptionSetsPage() {
             new Date(optionSet.updatedAt),
           )}
         </IndexTable.Cell>
+
+        <IndexTable.Cell>
+          <OptionSetRowActions
+            optionSetId={optionSet.id}
+            status={optionSet.status}
+            onEdit={() =>
+              navigate(`/app/option-sets/${optionSet.id}/edit`)
+            }
+          />
+        </IndexTable.Cell>
       </IndexTable.Row>
     ),
   );
@@ -347,6 +488,17 @@ export default function OptionSetsPage() {
           >
             <p>
               The option set was removed successfully.
+            </p>
+          </Banner>
+        ) : null}
+
+        {bulkAction && bulkCount >= 0 ? (
+          <Banner
+            tone="success"
+            title="Bulk action completed"
+          >
+            <p>
+              {bulkCount} option set{bulkCount === 1 ? "" : "s"} updated.
             </p>
           </Banner>
         ) : null}
@@ -449,19 +601,29 @@ export default function OptionSetsPage() {
                 onSelectionChange={
                   handleSelectionChange
                 }
+                promotedBulkActions={[
+                  {
+                    content: "Archive",
+                    onAction: () => submitBulkAction("archive"),
+                  },
+                  {
+                    content: "Restore",
+                    onAction: () => submitBulkAction("restore"),
+                  },
+                ]}
+                bulkActions={[
+                  {
+                    content: "Delete",
+                    destructive: true,
+                    onAction: () => setBulkDeleteOpen(true),
+                  },
+                ]}
                 headings={[
-                  {
-                    title: "Option set",
-                  },
-                  {
-                    title: "Status",
-                  },
-                  {
-                    title: "Products",
-                  },
-                  {
-                    title: "Updated",
-                  },
+                  { title: "Option set" },
+                  { title: "Status" },
+                  { title: "Products" },
+                  { title: "Updated" },
+                  { title: "Actions" },
                 ]}
                 pagination={{
                   hasPrevious:
@@ -492,6 +654,31 @@ export default function OptionSetsPage() {
             )}
           </BlockStack>
         </Card>
+        <Modal
+          open={bulkDeleteOpen}
+          onClose={() => setBulkDeleteOpen(false)}
+          title="Delete selected option sets?"
+          primaryAction={{
+            content: "Delete selected",
+            destructive: true,
+            loading: bulkFetcher.state !== "idle",
+            onAction: () => submitBulkAction("delete"),
+          }}
+          secondaryActions={[
+            {
+              content: "Cancel",
+              onAction: () => setBulkDeleteOpen(false),
+              disabled: bulkFetcher.state !== "idle",
+            },
+          ]}
+        >
+          <Modal.Section>
+            <Text as="p">
+              {selectedResources.length} selected option set
+              {selectedResources.length === 1 ? "" : "s"} will be removed.
+            </Text>
+          </Modal.Section>
+        </Modal>
       </BlockStack>
     </OFPage>
   );
