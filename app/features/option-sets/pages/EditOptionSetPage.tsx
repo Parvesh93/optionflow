@@ -48,6 +48,7 @@ export default function EditOptionSetPage() {
 
   const navigation = useNavigation();
   const duplicateFetcher = useFetcher();
+  const archiveFetcher = useFetcher();
   const [searchParams] = useSearchParams();
 
   const wasDuplicated =
@@ -58,6 +59,9 @@ export default function EditOptionSetPage() {
 
   const isDuplicating =
     duplicateFetcher.state !== "idle";
+
+  const isChangingArchiveState =
+    archiveFetcher.state !== "idle";
 
   const [name, setName] = useState(
     actionData?.values.name ??
@@ -245,21 +249,55 @@ export default function EditOptionSetPage() {
               align="space-between"
               gap="300"
             >
-              <Button
-                onClick={() => {
-                  duplicateFetcher.submit(
-                    {},
-                    {
-                      method: "post",
-                      action: `/app/option-sets/${optionSet.id}/duplicate`,
-                    },
-                  );
-                }}
-                loading={isDuplicating}
-                disabled={isSubmitting || isDuplicating}
-              >
-                Duplicate
-              </Button>
+              <InlineStack gap="300">
+                <Button
+                  onClick={() => {
+                    duplicateFetcher.submit(
+                      {},
+                      {
+                        method: "post",
+                        action: `/app/option-sets/${optionSet.id}/duplicate`,
+                      },
+                    );
+                  }}
+                  loading={isDuplicating}
+                  disabled={
+                    isSubmitting ||
+                    isDuplicating ||
+                    isChangingArchiveState
+                  }
+                >
+                  Duplicate
+                </Button>
+
+                <Button
+                  tone={optionSet.status === "ARCHIVED" ? undefined : "critical"}
+                  onClick={() => {
+                    const mode =
+                      optionSet.status === "ARCHIVED"
+                        ? "restore"
+                        : "archive";
+
+                    archiveFetcher.submit(
+                      {},
+                      {
+                        method: "post",
+                        action: `/app/option-sets/${optionSet.id}/${mode}`,
+                      },
+                    );
+                  }}
+                  loading={isChangingArchiveState}
+                  disabled={
+                    isSubmitting ||
+                    isDuplicating ||
+                    isChangingArchiveState
+                  }
+                >
+                  {optionSet.status === "ARCHIVED"
+                    ? "Restore"
+                    : "Archive"}
+                </Button>
+              </InlineStack>
 
               <InlineStack gap="300">
               <Button
