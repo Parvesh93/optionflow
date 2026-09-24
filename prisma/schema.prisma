@@ -88,7 +88,8 @@ model Shop {
   updatedAt      DateTime   @updatedAt
   deletedAt      DateTime?
 
-  optionSets OptionSet[]
+  optionSets   OptionSet[]
+  assignments ProductAssignment[]
 
   @@index([status])
   @@index([deletedAt])
@@ -112,8 +113,9 @@ model OptionSet {
   updatedAt         DateTime        @updatedAt
   deletedAt         DateTime?
 
-  shop   Shop          @relation(fields: [shopId], references: [id], onDelete: Restrict)
-  fields OptionField[]
+  shop        Shop                @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  fields      OptionField[]
+  assignments ProductAssignment[]
 
   @@unique([shopId, handle])
   @@index([shopId, status, deletedAt])
@@ -178,4 +180,24 @@ model OptionCondition {
 
   @@index([targetFieldId, position, deletedAt])
   @@index([sourceFieldId, deletedAt])
+}
+
+
+model ProductAssignment {
+  id              String   @id @default(cuid())
+  shopId          String
+  optionSetId     String
+  productGid      String
+  productTitle    String
+  productHandle   String
+  productImageUrl String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  shop      Shop      @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  optionSet OptionSet @relation(fields: [optionSetId], references: [id], onDelete: Restrict)
+
+  @@unique([shopId, productGid])
+  @@index([optionSetId])
+  @@index([shopId, optionSetId])
 }
