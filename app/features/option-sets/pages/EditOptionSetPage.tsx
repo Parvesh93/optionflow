@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Banner,
@@ -18,6 +18,7 @@ import {
   useActionData,
   useFetcher,
   useLoaderData,
+  useNavigate,
   useNavigation,
   useSearchParams,
 } from "react-router";
@@ -48,6 +49,7 @@ export default function EditOptionSetPage() {
     >();
 
   const navigation = useNavigation();
+  const navigate = useNavigate();
   const duplicateFetcher = useFetcher();
   const archiveFetcher = useFetcher();
   const deleteFetcher = useFetcher();
@@ -68,6 +70,22 @@ export default function EditOptionSetPage() {
 
   const isDeleting =
     deleteFetcher.state !== "idle";
+
+  useEffect(() => {
+    const result = duplicateFetcher.data as
+      | { success?: boolean; duplicatedId?: string }
+      | undefined;
+
+    if (
+      duplicateFetcher.state === "idle" &&
+      result?.success &&
+      result.duplicatedId
+    ) {
+      navigate(
+        `/app/option-sets/${result.duplicatedId}/edit?duplicated=1`,
+      );
+    }
+  }, [duplicateFetcher.state, duplicateFetcher.data, navigate]);
 
   const [name, setName] = useState(
     actionData?.values.name ??
@@ -258,8 +276,11 @@ export default function EditOptionSetPage() {
               <InlineStack gap="300">
                 <Button
                   onClick={() => {
+                    const formData = new FormData();
+                    formData.set("responseMode", "json");
+
                     duplicateFetcher.submit(
-                      {},
+                      formData,
                       {
                         method: "post",
                         action: `/app/option-sets/${optionSet.id}/duplicate`,
