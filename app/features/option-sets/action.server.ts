@@ -262,43 +262,40 @@ export async function duplicateOptionSetAction({
   request,
   params,
 }: ActionFunctionArgs) {
-  const { session } = await authenticate.admin(request);
-  const optionSetId = params.optionSetId;
-
-  if (!optionSetId) {
-    return data(
-      { success: false, formError: "The option set ID is missing." },
-      { status: 400 },
-    );
-  }
-
-  const shop = await ensureShop({
-    shopifyDomain: session.shop,
-  });
-
-  const formData = await request.formData();
-  const responseMode = getString(formData, "responseMode");
-
   try {
+    const { session } = await authenticate.admin(request);
+    const optionSetId = params.optionSetId;
+
+    if (!optionSetId) {
+      return data(
+        {
+          success: false,
+          formError: "The option set ID is missing.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const shop = await ensureShop({
+      shopifyDomain: session.shop,
+    });
+
     const duplicated = await optionSetService.duplicate(
       shop.id,
       optionSetId,
     );
 
-    if (responseMode === "json") {
-      return data({
-        success: true,
-        duplicatedId: duplicated.id,
-      });
-    }
-
-    return redirect(
-      `/app/option-sets/${duplicated.id}/edit?duplicated=1`,
-    );
+    return data({
+      success: true,
+      duplicatedId: duplicated.id,
+    });
   } catch (error) {
     if (error instanceof OptionSetNotFoundError) {
       return data(
-        { success: false, formError: "Option set not found." },
+        {
+          success: false,
+          formError: "Option set not found.",
+        },
         { status: 404 },
       );
     }
@@ -315,7 +312,6 @@ export async function duplicateOptionSetAction({
     );
   }
 }
-
 
 async function changeOptionSetArchiveState(
   request: Request,
