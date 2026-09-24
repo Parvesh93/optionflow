@@ -30,6 +30,7 @@ export default function ProductAssignmentsPage() {
     search,
     assignments,
     products,
+    pageInfo,
   } = useLoaderData<typeof productAssignmentsLoader>();
 
   const actionData =
@@ -44,6 +45,34 @@ export default function ProductAssignmentsPage() {
     searchParams.get("unassigned") === "1";
 
   const busy = navigation.state !== "idle";
+
+  function buildProductPageUrl(
+    direction: "next" | "previous",
+  ) {
+    const params = new URLSearchParams();
+
+    if (search) {
+      params.set("search", search);
+    }
+
+    if (
+      direction === "next" &&
+      pageInfo.endCursor
+    ) {
+      params.set("after", pageInfo.endCursor);
+    }
+
+    if (
+      direction === "previous" &&
+      pageInfo.startCursor
+    ) {
+      params.set("before", pageInfo.startCursor);
+    }
+
+    const query = params.toString();
+
+    return `/app/option-sets/${optionSet.id}/assignments${query ? `?${query}` : ""}`;
+  }
 
   return (
     <OFPage
@@ -324,6 +353,48 @@ export default function ProductAssignmentsPage() {
                 ))}
               </BlockStack>
             )}
+
+            {(pageInfo.hasPreviousPage ||
+              pageInfo.hasNextPage) ? (
+              <InlineStack
+                align="center"
+                gap="300"
+              >
+                <Button
+                  disabled={
+                    busy ||
+                    !pageInfo.hasPreviousPage
+                  }
+                  onClick={() =>
+                    navigate(
+                      buildProductPageUrl(
+                        "previous",
+                      ),
+                    )
+                  }
+                >
+                  Previous
+                </Button>
+
+                <Text as="p" tone="subdued">
+                  Showing up to 50 products
+                </Text>
+
+                <Button
+                  disabled={
+                    busy ||
+                    !pageInfo.hasNextPage
+                  }
+                  onClick={() =>
+                    navigate(
+                      buildProductPageUrl("next"),
+                    )
+                  }
+                >
+                  Next
+                </Button>
+              </InlineStack>
+            ) : null}
           </BlockStack>
         </Card>
       </BlockStack>
