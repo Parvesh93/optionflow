@@ -2,7 +2,7 @@
 
 client_id = "028fcc86977fa2a953456399fda3517a"
 name = "optionflow"
-application_url = "https://example.com"
+application_url = "https://optionflow-production-c6b5.up.railway.app"
 embedded = true
 
 [build]
@@ -17,4 +17,6 @@ api_version = "2026-10"
 scopes = "write_products"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [
+  "https://optionflow-production-c6b5.up.railway.app/auth/callback"
+]
