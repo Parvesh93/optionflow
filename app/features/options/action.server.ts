@@ -60,6 +60,11 @@ export async function optionBuilderAction({
           helpText: getString(formData, "helpText"),
           isRequired:
             getString(formData, "isRequired") === "on",
+          priceAdjustmentType:
+            getString(formData, "priceAdjustmentType") ||
+            "NONE",
+          priceAdjustmentValue:
+            getString(formData, "priceAdjustmentValue"),
           valuesText: getString(
             formData,
             "valuesText",
