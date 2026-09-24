@@ -161,6 +161,11 @@ export const optionSetRepository = {
     createdAt: true,
     updatedAt: true,
     publishedAt: true,
+    _count: {
+      select: {
+        assignments: true,
+      },
+    },
   },
   orderBy: buildOrderBy(input.sort),
   skip: input.skip,
