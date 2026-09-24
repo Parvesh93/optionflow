@@ -85,6 +85,22 @@ export const optionFieldRepository = {
             priceAdjustmentType: true,
             priceAdjustmentValue: true,
             position: true,
+            conditions: {
+              where: {
+                deletedAt: null,
+              },
+              orderBy: [
+                { position: "asc" },
+                { createdAt: "asc" },
+              ],
+              take: 1,
+              select: {
+                id: true,
+                sourceFieldId: true,
+                operator: true,
+                expectedValue: true,
+              },
+            },
             values: {
               where: {
                 deletedAt: null,
@@ -265,8 +281,112 @@ export const optionFieldRepository = {
         },
       });
 
+      await tx.optionCondition.updateMany({
+        where: {
+          deletedAt: null,
+          OR: [
+            { targetFieldId: fieldId },
+            { sourceFieldId: fieldId },
+          ],
+        },
+        data: {
+          deletedAt: now,
+        },
+      });
+
       return true;
     });
+  },
+
+  async saveCondition(
+    shopId: string,
+    optionSetId: string,
+    targetFieldId: string,
+    input: {
+      sourceFieldId: string;
+      operator:
+        | "EQUALS"
+        | "NOT_EQUALS"
+        | "IS_CHECKED"
+        | "IS_NOT_CHECKED";
+      expectedValue: string | null;
+    },
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const fields = await tx.optionField.findMany({
+        where: {
+          id: {
+            in: [targetFieldId, input.sourceFieldId],
+          },
+          optionSetId,
+          optionSet: {
+            shopId,
+            deletedAt: null,
+          },
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (
+        fields.length !== 2 ||
+        targetFieldId === input.sourceFieldId
+      ) {
+        return false;
+      }
+
+      const now = new Date();
+
+      await tx.optionCondition.updateMany({
+        where: {
+          targetFieldId,
+          deletedAt: null,
+        },
+        data: {
+          deletedAt: now,
+        },
+      });
+
+      await tx.optionCondition.create({
+        data: {
+          targetFieldId,
+          sourceFieldId: input.sourceFieldId,
+          operator: input.operator,
+          expectedValue: input.expectedValue,
+          position: 0,
+        },
+      });
+
+      return true;
+    });
+  },
+
+  async removeCondition(
+    shopId: string,
+    optionSetId: string,
+    targetFieldId: string,
+  ) {
+    const result = await prisma.optionCondition.updateMany({
+      where: {
+        targetFieldId,
+        targetField: {
+          optionSetId,
+          optionSet: {
+            shopId,
+            deletedAt: null,
+          },
+          deletedAt: null,
+        },
+        deletedAt: null,
+      },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+
+    return result.count > 0;
   },
 
   async reorderFields(
