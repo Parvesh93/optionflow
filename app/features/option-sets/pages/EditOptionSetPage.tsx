@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   Banner,
@@ -18,8 +18,7 @@ import {
   useActionData,
   useFetcher,
   useLoaderData,
-  useNavigate,
-  useNavigation,
+    useNavigation,
   useSearchParams,
 } from "react-router";
 
@@ -49,9 +48,7 @@ export default function EditOptionSetPage() {
     >();
 
   const navigation = useNavigation();
-  const navigate = useNavigate();
-  const duplicateFetcher = useFetcher();
-  const archiveFetcher = useFetcher();
+      const archiveFetcher = useFetcher();
   const deleteFetcher = useFetcher();
   const [searchParams] = useSearchParams();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -62,30 +59,11 @@ export default function EditOptionSetPage() {
   const isSubmitting =
     navigation.state === "submitting";
 
-  const isDuplicating =
-    duplicateFetcher.state !== "idle";
-
   const isChangingArchiveState =
     archiveFetcher.state !== "idle";
 
   const isDeleting =
     deleteFetcher.state !== "idle";
-
-  useEffect(() => {
-    const result = duplicateFetcher.data as
-      | { success?: boolean; duplicatedId?: string }
-      | undefined;
-
-    if (
-      duplicateFetcher.state === "idle" &&
-      result?.success &&
-      result.duplicatedId
-    ) {
-      navigate(
-        `/app/option-sets/${result.duplicatedId}/edit?duplicated=1`,
-      );
-    }
-  }, [duplicateFetcher.state, duplicateFetcher.data, navigate]);
 
   const [name, setName] = useState(
     actionData?.values.name ??
@@ -270,76 +248,9 @@ export default function EditOptionSetPage() {
             </Card>
 
             <InlineStack
-              align="space-between"
+              align="end"
               gap="300"
             >
-              <InlineStack gap="300">
-                <Button
-                  onClick={() => {
-                    const formData = new FormData();
-                    formData.set("responseMode", "json");
-
-                    duplicateFetcher.submit(
-                      formData,
-                      {
-                        method: "post",
-                        action: `/app/option-sets/${optionSet.id}/duplicate`,
-                      },
-                    );
-                  }}
-                  loading={isDuplicating}
-                  disabled={
-                    isSubmitting ||
-                    isDuplicating ||
-                    isChangingArchiveState
-                  }
-                >
-                  Duplicate
-                </Button>
-
-                <Button
-                  tone={optionSet.status === "ARCHIVED" ? undefined : "critical"}
-                  onClick={() => {
-                    const mode =
-                      optionSet.status === "ARCHIVED"
-                        ? "restore"
-                        : "archive";
-
-                    archiveFetcher.submit(
-                      {},
-                      {
-                        method: "post",
-                        action: `/app/option-sets/${optionSet.id}/${mode}`,
-                      },
-                    );
-                  }}
-                  loading={isChangingArchiveState}
-                  disabled={
-                    isSubmitting ||
-                    isDuplicating ||
-                    isChangingArchiveState
-                  }
-                >
-                  {optionSet.status === "ARCHIVED"
-                    ? "Restore"
-                    : "Archive"}
-                </Button>
-
-                <Button
-                  tone="critical"
-                  onClick={() => setDeleteModalOpen(true)}
-                  disabled={
-                    isSubmitting ||
-                    isDuplicating ||
-                    isChangingArchiveState ||
-                    isDeleting
-                  }
-                >
-                  Delete
-                </Button>
-              </InlineStack>
-
-              <InlineStack gap="300">
               <Button
                 url="/app/option-sets"
                 disabled={isSubmitting}
@@ -354,10 +265,61 @@ export default function EditOptionSetPage() {
               >
                 Save changes
               </Button>
-              </InlineStack>
             </InlineStack>
           </BlockStack>
         </Form>
+
+        <InlineStack gap="300">
+          <Form
+            method="post"
+            action={`/app/option-sets/${optionSet.id}/duplicate`}
+          >
+            <Button submit>
+              Duplicate
+            </Button>
+          </Form>
+
+          <Button
+            tone={optionSet.status === "ARCHIVED" ? undefined : "critical"}
+            onClick={() => {
+              const mode =
+                optionSet.status === "ARCHIVED"
+                  ? "restore"
+                  : "archive";
+
+              archiveFetcher.submit(
+                {},
+                {
+                  method: "post",
+                  action: `/app/option-sets/${optionSet.id}/${mode}`,
+                },
+              );
+            }}
+            loading={isChangingArchiveState}
+            disabled={
+              isSubmitting ||
+              isChangingArchiveState ||
+              isDeleting
+            }
+          >
+            {optionSet.status === "ARCHIVED"
+              ? "Restore"
+              : "Archive"}
+          </Button>
+
+          <Button
+            tone="critical"
+            onClick={() => setDeleteModalOpen(true)}
+            disabled={
+              isSubmitting ||
+              isChangingArchiveState ||
+              isDeleting
+            }
+          >
+            Delete
+          </Button>
+        </InlineStack>
+
         <Modal
           open={deleteModalOpen}
           onClose={() => setDeleteModalOpen(false)}
