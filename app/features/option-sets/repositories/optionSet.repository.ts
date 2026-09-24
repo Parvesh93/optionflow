@@ -265,6 +265,30 @@ async update(
   });
 },
 
+  async softDelete(
+    shopId: string,
+    optionSetId: string,
+    client: OptionSetRepositoryClient = prisma,
+  ) {
+    const result = await client.optionSet.updateMany({
+      where: {
+        id: optionSetId,
+        shopId,
+        deletedAt: null,
+      },
+      data: {
+        deletedAt: new Date(),
+        publishedAt: null,
+        publishedRevision: null,
+        revision: {
+          increment: 1,
+        },
+      },
+    });
+
+    return result.count > 0;
+  },
+
   async archive(
     shopId: string,
     optionSetId: string,
