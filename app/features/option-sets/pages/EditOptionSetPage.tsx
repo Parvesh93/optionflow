@@ -15,6 +15,7 @@ import {
 import {
   Form,
   useActionData,
+  useFetcher,
   useLoaderData,
   useNavigation,
   useSearchParams,
@@ -46,6 +47,7 @@ export default function EditOptionSetPage() {
     >();
 
   const navigation = useNavigation();
+  const duplicateFetcher = useFetcher();
   const [searchParams] = useSearchParams();
 
   const wasDuplicated =
@@ -53,6 +55,9 @@ export default function EditOptionSetPage() {
 
   const isSubmitting =
     navigation.state === "submitting";
+
+  const isDuplicating =
+    duplicateFetcher.state !== "idle";
 
   const [name, setName] = useState(
     actionData?.values.name ??
@@ -240,17 +245,21 @@ export default function EditOptionSetPage() {
               align="space-between"
               gap="300"
             >
-              <Form
-                method="post"
-                action={`/app/option-sets/${optionSet.id}/duplicate`}
+              <Button
+                onClick={() => {
+                  duplicateFetcher.submit(
+                    {},
+                    {
+                      method: "post",
+                      action: `/app/option-sets/${optionSet.id}/duplicate`,
+                    },
+                  );
+                }}
+                loading={isDuplicating}
+                disabled={isSubmitting || isDuplicating}
               >
-                <Button
-                  submit
-                  disabled={isSubmitting}
-                >
-                  Duplicate
-                </Button>
-              </Form>
+                Duplicate
+              </Button>
 
               <InlineStack gap="300">
               <Button
