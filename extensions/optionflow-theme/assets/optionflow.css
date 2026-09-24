@@ -1,0 +1,76 @@
+.optionflow-product-options {
+  margin-block: 1rem;
+}
+
+.optionflow-product-options[hidden] {
+  display: none !important;
+}
+
+.optionflow-product-options__loading,
+.optionflow-product-options__message,
+.optionflow-field__help {
+  color: rgba(var(--color-foreground, 18, 18, 18), 0.7);
+  font-size: 0.9em;
+}
+
+.optionflow-product-options__title {
+  margin: 0 0 1rem;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.optionflow-fields {
+  display: grid;
+  gap: 1rem;
+}
+
+.optionflow-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.optionflow-field[hidden] {
+  display: none !important;
+}
+
+.optionflow-field__label {
+  font-weight: 600;
+}
+
+.optionflow-field__required {
+  margin-inline-start: 0.2rem;
+}
+
+.optionflow-field input[type="text"],
+.optionflow-field input[type="number"],
+.optionflow-field textarea,
+.optionflow-field select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(var(--color-foreground, 18, 18, 18), 0.22);
+  border-radius: var(--inputs-radius, 6px);
+  background: rgb(var(--color-background, 255, 255, 255));
+  color: rgb(var(--color-foreground, 18, 18, 18));
+  font: inherit;
+}
+
+.optionflow-field textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.optionflow-choices {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.optionflow-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.optionflow-choice input {
+  margin: 0;
+}
