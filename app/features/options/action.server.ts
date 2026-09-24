@@ -86,6 +86,26 @@ export async function optionBuilderAction({
       );
     }
 
+    if (intent === "reorderFields") {
+      const orderedFieldIds = formData
+        .getAll("fieldIds")
+        .filter(
+          (value): value is string =>
+            typeof value === "string",
+        );
+
+      await optionFieldService.reorderFields(
+        shop.id,
+        optionSetId,
+        orderedFieldIds,
+      );
+
+      return data({
+        success: true,
+        reordered: true,
+      });
+    }
+
     if (intent === "moveField") {
       const fieldId = getString(formData, "fieldId");
       const direction = getString(
