@@ -51,6 +51,7 @@ import type { optionBuilderLoader } from "../loader.server";
 import type {
   BuilderFieldDTO,
   BuilderFieldType,
+  ConditionOperator,
   PriceAdjustmentType,
 } from "../types";
 
@@ -517,9 +518,11 @@ function ConditionEditor({
       ? "IS_CHECKED"
       : "EQUALS";
 
-  const [operator, setOperator] = useState(
-    field.condition?.operator ?? defaultOperator,
-  );
+  const [operator, setOperator] =
+    useState<ConditionOperator>(
+      field.condition?.operator ??
+        (defaultOperator as ConditionOperator),
+    );
 
   const [expectedValue, setExpectedValue] =
     useState(field.condition?.expectedValue ?? "");
@@ -636,7 +639,9 @@ function ConditionEditor({
               name="operator"
               value={operator}
               options={operatorOptions}
-              onChange={setOperator}
+              onChange={(value) =>
+                setOperator(value as ConditionOperator)
+              }
             />
 
             {sourceField &&
