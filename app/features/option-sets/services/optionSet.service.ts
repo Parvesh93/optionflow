@@ -273,6 +273,64 @@ async update(
   };
 },
 
+  async archive(
+    shopId: string,
+    optionSetId: string,
+  ) {
+    const current = await optionSetRepository.findById(
+      shopId,
+      optionSetId,
+    );
+
+    if (!current) {
+      throw new OptionSetNotFoundError();
+    }
+
+    if (current.status === "ARCHIVED") {
+      return { id: current.id, status: current.status };
+    }
+
+    const archived = await optionSetRepository.archive(
+      shopId,
+      optionSetId,
+    );
+
+    if (!archived) {
+      throw new OptionSetNotFoundError();
+    }
+
+    return { id: optionSetId, status: "ARCHIVED" as const };
+  },
+
+  async restore(
+    shopId: string,
+    optionSetId: string,
+  ) {
+    const current = await optionSetRepository.findById(
+      shopId,
+      optionSetId,
+    );
+
+    if (!current) {
+      throw new OptionSetNotFoundError();
+    }
+
+    if (current.status !== "ARCHIVED") {
+      return { id: current.id, status: current.status };
+    }
+
+    const restored = await optionSetRepository.restore(
+      shopId,
+      optionSetId,
+    );
+
+    if (!restored) {
+      throw new OptionSetNotFoundError();
+    }
+
+    return { id: optionSetId, status: "DRAFT" as const };
+  },
+
   async duplicate(
     shopId: string,
     optionSetId: string,
