@@ -273,6 +273,41 @@ async update(
   };
 },
 
+  async duplicate(
+    shopId: string,
+    optionSetId: string,
+  ) {
+    const source = await optionSetRepository.findById(
+      shopId,
+      optionSetId,
+    );
+
+    if (!source) {
+      throw new OptionSetNotFoundError();
+    }
+
+    const name = `${source.name} - Copy`;
+    const handle = await createUniqueHandle(shopId, name);
+
+    const duplicated = await optionSetRepository.duplicate({
+      shopId,
+      name,
+      handle,
+      description: source.description,
+      internalNote: source.internalNote,
+      displayTitle: source.displayTitle,
+      tags: source.tags,
+      priority: source.priority,
+    });
+
+    return {
+      id: duplicated.id,
+      name: duplicated.name,
+      handle: duplicated.handle,
+      status: duplicated.status,
+    };
+  },
+
   async create(
     shopId: string,
     input: CreateOptionSetInput,
