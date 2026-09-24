@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   Checkbox,
+  Collapsible,
   Divider,
   EmptyState,
   FormLayout,
@@ -14,6 +15,24 @@ import {
   Text,
   TextField,
 } from "@shopify/polaris";
+
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 import {
   Form,
@@ -42,6 +61,13 @@ const typeOptions = [
   { label: "Radio buttons", value: "RADIO" },
   { label: "Checkbox", value: "CHECKBOX" },
 ];
+
+function getTypeLabel(type: BuilderFieldType) {
+  return (
+    typeOptions.find((option) => option.value === type)
+      ?.label ?? type
+  );
+}
 
 function valuesToText(field: BuilderFieldDTO) {
   return field.values.map((value) => value.label).join("\n");
@@ -77,6 +103,7 @@ function FieldPreview({
           {field.label}
           {field.isRequired ? " *" : ""}
         </Text>
+
         {field.values.length > 0 ? (
           field.values.map((value) => (
             <Checkbox
@@ -89,7 +116,7 @@ function FieldPreview({
           ))
         ) : (
           <Text as="p" tone="subdued">
-            Add values to preview this field.
+            Add choices to preview this field.
           </Text>
         )}
       </BlockStack>
@@ -124,18 +151,15 @@ function FieldPreview({
   );
 }
 
-function FieldEditor({
+function SortableFieldEditor({
   field,
   optionSetId,
-  index,
-  count,
 }: {
   field: BuilderFieldDTO;
   optionSetId: string;
-  index: number;
-  count: number;
 }) {
   const fetcher = useFetcher();
+  const [open, setOpen] = useState(false);
   const [type, setType] =
     useState<BuilderFieldType>(field.type);
   const [label, setLabel] = useState(field.label);
@@ -152,22 +176,283 @@ function FieldEditor({
     valuesToText(field),
   );
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: field.id,
+  });
+
   const busy = fetcher.state !== "idle";
   const supportsValues =
     type === "SELECT" || type === "RADIO";
 
-  function submitUtility(
-    intent: "moveField" | "deleteField",
-    extra?: Record<string, string>,
-  ) {
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.55 : 1,
+    zIndex: isDragging ? 2 : undefined,
+  };
+
+  function deleteField() {
     const formData = new FormData();
-    formData.set("intent", intent);
+    formData.set("intent", "deleteField");
     formData.set("fieldId", field.id);
 
-    for (const [key, value] of Object.entries(
-      extra ?? {},
-    )) {
-      formData.set(key, value);
+    fetcher.submit(formData, {
+      method: "post",
+      action: `/app/option-sets/${optionSetId}/builder`,
+    });
+  }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card>
+        <BlockStack gap="300">
+          <InlineStack
+            align="space-between"
+            blockAlign="center"
+            gap="300"
+            wrap
+          >
+            <InlineStack
+              gap="300"
+              blockAlign="center"
+              wrap={false}
+            >
+              <button
+                type="button"
+                aria-label={`Reorder ${field.label}`}
+                {...attributes}
+                {...listeners}
+                style={{
+                  width: 34,
+                  height: 34,
+                  border:
+                    "1px solid var(--p-color-border-secondary)",
+                  borderRadius: 8,
+                  background:
+                    "var(--p-color-bg-surface-secondary)",
+                  cursor: isDragging ? "grabbing" : "grab",
+                  fontSize: 18,
+                  lineHeight: 1,
+                }}
+              >
+                ⋮⋮
+              </button>
+
+              <BlockStack gap="050">
+                <InlineStack gap="200" blockAlign="center">
+                  <Text as="h3" variant="headingMd">
+                    {field.label}
+                  </Text>
+                  {field.isRequired ? (
+                    <Text as="span" tone="subdued">
+                      Required
+                    </Text>
+                  ) : null}
+                </InlineStack>
+
+                <Text as="p" tone="subdued">
+                  {getTypeLabel(field.type)}
+                </Text>
+              </BlockStack>
+            </InlineStack>
+
+            <InlineStack gap="200">
+              <Button
+                onClick={() => setOpen((value) => !value)}
+                disclosure={open ? "up" : "down"}
+              >
+                {open ? "Close" : "Edit"}
+              </Button>
+
+              <Button
+                tone="critical"
+                disabled={busy}
+                onClick={deleteField}
+              >
+                Delete
+              </Button>
+            </InlineStack>
+          </InlineStack>
+
+          <Collapsible
+            open={open}
+            id={`option-field-${field.id}`}
+            transition={{
+              duration: "200ms",
+              timingFunction: "ease-in-out",
+            }}
+          >
+            <BlockStack gap="400">
+              <Divider />
+
+              <Form
+                method="post"
+                action={`/app/option-sets/${optionSetId}/builder`}
+              >
+                <input
+                  type="hidden"
+                  name="intent"
+                  value="saveField"
+                />
+                <input
+                  type="hidden"
+                  name="fieldId"
+                  value={field.id}
+                />
+
+                <BlockStack gap="400">
+                  <FormLayout>
+                    <Select
+                      label="Option type"
+                      name="type"
+                      value={type}
+                      options={typeOptions}
+                      onChange={(value) =>
+                        setType(
+                          value as BuilderFieldType,
+                        )
+                      }
+                    />
+
+                    <TextField
+                      label="Label"
+                      name="label"
+                      value={label}
+                      onChange={setLabel}
+                      autoComplete="off"
+                      maxLength={100}
+                      requiredIndicator
+                    />
+
+                    {type !== "CHECKBOX" ? (
+                      <TextField
+                        label="Placeholder"
+                        name="placeholder"
+                        value={placeholder}
+                        onChange={setPlaceholder}
+                        autoComplete="off"
+                      />
+                    ) : (
+                      <input
+                        type="hidden"
+                        name="placeholder"
+                        value=""
+                      />
+                    )}
+
+                    <TextField
+                      label="Help text"
+                      name="helpText"
+                      value={helpText}
+                      onChange={setHelpText}
+                      autoComplete="off"
+                    />
+
+                    <Checkbox
+                      label="Required field"
+                      name="isRequired"
+                      checked={required}
+                      onChange={setRequired}
+                    />
+
+                    {supportsValues ? (
+                      <TextField
+                        label="Choices"
+                        name="valuesText"
+                        value={valuesText}
+                        onChange={setValuesText}
+                        autoComplete="off"
+                        multiline={5}
+                        helpText="Enter one choice per line."
+                      />
+                    ) : (
+                      <input
+                        type="hidden"
+                        name="valuesText"
+                        value=""
+                      />
+                    )}
+                  </FormLayout>
+
+                  <InlineStack align="end">
+                    <Button
+                      submit
+                      variant="primary"
+                      loading={busy}
+                    >
+                      Save field
+                    </Button>
+                  </InlineStack>
+                </BlockStack>
+              </Form>
+            </BlockStack>
+          </Collapsible>
+        </BlockStack>
+      </Card>
+    </div>
+  );
+}
+
+function SortableFieldList({
+  initialFields,
+  optionSetId,
+}: {
+  initialFields: BuilderFieldDTO[];
+  optionSetId: string;
+}) {
+  const fetcher = useFetcher();
+  const [orderedFields, setOrderedFields] =
+    useState(initialFields);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 6,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = orderedFields.findIndex(
+      (field) => field.id === active.id,
+    );
+    const newIndex = orderedFields.findIndex(
+      (field) => field.id === over.id,
+    );
+
+    if (oldIndex < 0 || newIndex < 0) {
+      return;
+    }
+
+    const nextFields = arrayMove(
+      orderedFields,
+      oldIndex,
+      newIndex,
+    );
+
+    setOrderedFields(nextFields);
+
+    const formData = new FormData();
+    formData.set("intent", "reorderFields");
+
+    for (const field of nextFields) {
+      formData.append("fieldIds", field.id);
     }
 
     fetcher.submit(formData, {
@@ -177,155 +462,34 @@ function FieldEditor({
   }
 
   return (
-    <Card>
-      <BlockStack gap="400">
-        <InlineStack
-          align="space-between"
-          blockAlign="center"
-          gap="300"
+    <BlockStack gap="300">
+      {fetcher.state !== "idle" ? (
+        <Text as="p" tone="subdued">
+          Saving order…
+        </Text>
+      ) : null}
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={orderedFields.map((field) => field.id)}
+          strategy={verticalListSortingStrategy}
         >
-          <BlockStack gap="100">
-            <Text as="h3" variant="headingMd">
-              {field.label}
-            </Text>
-            <Text as="p" tone="subdued">
-              {typeOptions.find(
-                (option) => option.value === field.type,
-              )?.label ?? field.type}
-            </Text>
+          <BlockStack gap="300">
+            {orderedFields.map((field) => (
+              <SortableFieldEditor
+                key={field.id}
+                field={field}
+                optionSetId={optionSetId}
+              />
+            ))}
           </BlockStack>
-
-          <InlineStack gap="200">
-            <Button
-              disabled={busy || index === 0}
-              onClick={() =>
-                submitUtility("moveField", {
-                  direction: "up",
-                })
-              }
-            >
-              Move up
-            </Button>
-            <Button
-              disabled={busy || index === count - 1}
-              onClick={() =>
-                submitUtility("moveField", {
-                  direction: "down",
-                })
-              }
-            >
-              Move down
-            </Button>
-            <Button
-              tone="critical"
-              disabled={busy}
-              onClick={() =>
-                submitUtility("deleteField")
-              }
-            >
-              Delete
-            </Button>
-          </InlineStack>
-        </InlineStack>
-
-        <Divider />
-
-        <Form
-          method="post"
-          action={`/app/option-sets/${optionSetId}/builder`}
-        >
-          <input
-            type="hidden"
-            name="intent"
-            value="saveField"
-          />
-          <input
-            type="hidden"
-            name="fieldId"
-            value={field.id}
-          />
-
-          <BlockStack gap="400">
-            <FormLayout>
-              <Select
-                label="Option type"
-                name="type"
-                value={type}
-                options={typeOptions}
-                onChange={(value) =>
-                  setType(value as BuilderFieldType)
-                }
-              />
-
-              <TextField
-                label="Label"
-                name="label"
-                value={label}
-                onChange={setLabel}
-                autoComplete="off"
-                maxLength={100}
-                requiredIndicator
-              />
-
-              {type !== "CHECKBOX" ? (
-                <TextField
-                  label="Placeholder"
-                  name="placeholder"
-                  value={placeholder}
-                  onChange={setPlaceholder}
-                  autoComplete="off"
-                />
-              ) : (
-                <input
-                  type="hidden"
-                  name="placeholder"
-                  value=""
-                />
-              )}
-
-              <TextField
-                label="Help text"
-                name="helpText"
-                value={helpText}
-                onChange={setHelpText}
-                autoComplete="off"
-              />
-
-              <Checkbox
-                label="Required field"
-                name="isRequired"
-                checked={required}
-                onChange={setRequired}
-              />
-
-              {supportsValues ? (
-                <TextField
-                  label="Choices"
-                  name="valuesText"
-                  value={valuesText}
-                  onChange={setValuesText}
-                  autoComplete="off"
-                  multiline={5}
-                  helpText="Enter one choice per line."
-                />
-              ) : (
-                <input
-                  type="hidden"
-                  name="valuesText"
-                  value=""
-                />
-              )}
-            </FormLayout>
-
-            <InlineStack align="end">
-              <Button submit variant="primary">
-                Save field
-              </Button>
-            </InlineStack>
-          </BlockStack>
-        </Form>
-      </BlockStack>
-    </Card>
+        </SortableContext>
+      </DndContext>
+    </BlockStack>
   );
 }
 
@@ -334,6 +498,7 @@ function AddFieldCard({
 }: {
   optionSetId: string;
 }) {
+  const [open, setOpen] = useState(true);
   const [type, setType] =
     useState<BuilderFieldType>("TEXT");
   const [label, setLabel] = useState("");
@@ -347,105 +512,133 @@ function AddFieldCard({
 
   return (
     <Card>
-      <BlockStack gap="400">
-        <BlockStack gap="100">
-          <Text as="h2" variant="headingMd">
-            Add option
-          </Text>
-          <Text as="p" tone="subdued">
-            Add a field customers can interact with on the
-            product page.
-          </Text>
-        </BlockStack>
-
-        <Form
-          method="post"
-          action={`/app/option-sets/${optionSetId}/builder`}
+      <BlockStack gap="300">
+        <InlineStack
+          align="space-between"
+          blockAlign="center"
         >
-          <input
-            type="hidden"
-            name="intent"
-            value="saveField"
-          />
-
-          <BlockStack gap="400">
-            <FormLayout>
-              <Select
-                label="Option type"
-                name="type"
-                value={type}
-                options={typeOptions}
-                onChange={(value) =>
-                  setType(value as BuilderFieldType)
-                }
-              />
-
-              <TextField
-                label="Label"
-                name="label"
-                value={label}
-                onChange={setLabel}
-                autoComplete="off"
-                placeholder="For example, Engraving text"
-                requiredIndicator
-                maxLength={100}
-              />
-
-              {type !== "CHECKBOX" ? (
-                <TextField
-                  label="Placeholder"
-                  name="placeholder"
-                  value={placeholder}
-                  onChange={setPlaceholder}
-                  autoComplete="off"
-                />
-              ) : (
-                <input
-                  type="hidden"
-                  name="placeholder"
-                  value=""
-                />
-              )}
-
-              <TextField
-                label="Help text"
-                name="helpText"
-                value={helpText}
-                onChange={setHelpText}
-                autoComplete="off"
-              />
-
-              <Checkbox
-                label="Required field"
-                name="isRequired"
-                checked={required}
-                onChange={setRequired}
-              />
-
-              {supportsValues ? (
-                <TextField
-                  label="Choices"
-                  name="valuesText"
-                  value={valuesText}
-                  onChange={setValuesText}
-                  autoComplete="off"
-                  multiline={5}
-                  helpText="Enter one choice per line."
-                />
-              ) : (
-                <input
-                  type="hidden"
-                  name="valuesText"
-                  value=""
-                />
-              )}
-            </FormLayout>
-
-            <Button submit variant="primary">
+          <BlockStack gap="050">
+            <Text as="h2" variant="headingMd">
               Add option
-            </Button>
+            </Text>
+            <Text as="p" tone="subdued">
+              Add another customer-facing field.
+            </Text>
           </BlockStack>
-        </Form>
+
+          <Button
+            onClick={() => setOpen((value) => !value)}
+            disclosure={open ? "up" : "down"}
+          >
+            {open ? "Hide" : "Add option"}
+          </Button>
+        </InlineStack>
+
+        <Collapsible
+          open={open}
+          id="add-option-field"
+          transition={{
+            duration: "200ms",
+            timingFunction: "ease-in-out",
+          }}
+        >
+          <BlockStack gap="400">
+            <Divider />
+
+            <Form
+              method="post"
+              action={`/app/option-sets/${optionSetId}/builder`}
+            >
+              <input
+                type="hidden"
+                name="intent"
+                value="saveField"
+              />
+
+              <BlockStack gap="400">
+                <FormLayout>
+                  <Select
+                    label="Option type"
+                    name="type"
+                    value={type}
+                    options={typeOptions}
+                    onChange={(value) =>
+                      setType(
+                        value as BuilderFieldType,
+                      )
+                    }
+                  />
+
+                  <TextField
+                    label="Label"
+                    name="label"
+                    value={label}
+                    onChange={setLabel}
+                    autoComplete="off"
+                    placeholder="For example, Engraving text"
+                    requiredIndicator
+                    maxLength={100}
+                  />
+
+                  {type !== "CHECKBOX" ? (
+                    <TextField
+                      label="Placeholder"
+                      name="placeholder"
+                      value={placeholder}
+                      onChange={setPlaceholder}
+                      autoComplete="off"
+                    />
+                  ) : (
+                    <input
+                      type="hidden"
+                      name="placeholder"
+                      value=""
+                    />
+                  )}
+
+                  <TextField
+                    label="Help text"
+                    name="helpText"
+                    value={helpText}
+                    onChange={setHelpText}
+                    autoComplete="off"
+                  />
+
+                  <Checkbox
+                    label="Required field"
+                    name="isRequired"
+                    checked={required}
+                    onChange={setRequired}
+                  />
+
+                  {supportsValues ? (
+                    <TextField
+                      label="Choices"
+                      name="valuesText"
+                      value={valuesText}
+                      onChange={setValuesText}
+                      autoComplete="off"
+                      multiline={5}
+                      helpText="Enter one choice per line."
+                    />
+                  ) : (
+                    <input
+                      type="hidden"
+                      name="valuesText"
+                      value=""
+                    />
+                  )}
+                </FormLayout>
+
+                <InlineStack align="end">
+                  <Button submit variant="primary">
+                    Add option
+                  </Button>
+                </InlineStack>
+              </BlockStack>
+            </Form>
+          </BlockStack>
+        </Collapsible>
       </BlockStack>
     </Card>
   );
@@ -463,6 +656,10 @@ export default function OptionBuilderPage() {
   const saved = searchParams.get("saved") === "1";
   const deleted =
     searchParams.get("deleted") === "1";
+
+  const listKey = fields
+    .map((field) => `${field.id}:${field.position}`)
+    .join("|");
 
   return (
     <OFPage
@@ -487,19 +684,15 @@ export default function OptionBuilderPage() {
     >
       <BlockStack gap="500">
         {saved ? (
-          <Banner
-            tone="success"
-            title="Option saved"
-          >
-            <p>The option field was saved successfully.</p>
+          <Banner tone="success" title="Option saved">
+            <p>
+              The option field was saved successfully.
+            </p>
           </Banner>
         ) : null}
 
         {deleted ? (
-          <Banner
-            tone="success"
-            title="Option deleted"
-          >
+          <Banner tone="success" title="Option deleted">
             <p>The option field was removed.</p>
           </Banner>
         ) : null}
@@ -531,21 +724,19 @@ export default function OptionBuilderPage() {
           }}
         >
           <BlockStack gap="400">
-            <InlineStack
-              align="space-between"
-              blockAlign="center"
-            >
-              <BlockStack gap="100">
-                <Text as="h2" variant="headingLg">
-                  Options
-                </Text>
-                <Text as="p" tone="subdued">
-                  {fields.length === 1
-                    ? "1 option configured"
-                    : `${fields.length} options configured`}
-                </Text>
-              </BlockStack>
-            </InlineStack>
+            <BlockStack gap="100">
+              <Text as="h2" variant="headingLg">
+                Options
+              </Text>
+              <Text as="p" tone="subdued">
+                {fields.length === 1
+                  ? "1 option configured"
+                  : `${fields.length} options configured`}
+                {fields.length > 1
+                  ? " · Drag the handle to reorder."
+                  : ""}
+              </Text>
+            </BlockStack>
 
             {fields.length === 0 ? (
               <Card>
@@ -554,55 +745,59 @@ export default function OptionBuilderPage() {
                   image=""
                 >
                   <p>
-                    Start with a text field, dropdown, radio
-                    choice, number field, textarea or checkbox.
+                    Start with a text field, dropdown,
+                    radio choice, number field, textarea or
+                    checkbox.
                   </p>
                 </EmptyState>
               </Card>
             ) : (
-              fields.map((field, index) => (
-                <FieldEditor
-                  key={field.id}
-                  field={field}
-                  optionSetId={optionSet.id}
-                  index={index}
-                  count={fields.length}
-                />
-              ))
+              <SortableFieldList
+                key={listKey}
+                initialFields={fields}
+                optionSetId={optionSet.id}
+              />
             )}
 
             <AddFieldCard optionSetId={optionSet.id} />
           </BlockStack>
 
-          <Card>
-            <BlockStack gap="400">
-              <BlockStack gap="100">
-                <Text as="h2" variant="headingMd">
-                  Live preview
-                </Text>
-                <Text as="p" tone="subdued">
-                  Preview of the currently saved options.
-                </Text>
-              </BlockStack>
-
-              <Divider />
-
-              {fields.length === 0 ? (
-                <Text as="p" tone="subdued">
-                  Add an option to see the preview.
-                </Text>
-              ) : (
-                <BlockStack gap="400">
-                  {fields.map((field) => (
-                    <FieldPreview
-                      key={field.id}
-                      field={field}
-                    />
-                  ))}
+          <div
+            style={{
+              position: "sticky",
+              top: 20,
+            }}
+          >
+            <Card>
+              <BlockStack gap="400">
+                <BlockStack gap="100">
+                  <Text as="h2" variant="headingMd">
+                    Live preview
+                  </Text>
+                  <Text as="p" tone="subdued">
+                    Preview of the currently saved options.
+                  </Text>
                 </BlockStack>
-              )}
-            </BlockStack>
-          </Card>
+
+                <Divider />
+
+                {fields.length === 0 ? (
+                  <Text as="p" tone="subdued">
+                    Add an option to see the preview.
+                  </Text>
+                ) : (
+                  <BlockStack gap="400">
+                    {fields.map((field) => (
+                      <FieldPreview
+                        key={field.id}
+                        field={field}
+                      />
+                    ))}
+                  </BlockStack>
+                )}
+              </BlockStack>
+            </Card>
+          </div>
         </div>
       </BlockStack>
     </OFPage>
