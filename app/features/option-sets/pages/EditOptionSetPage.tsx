@@ -129,6 +129,12 @@ export default function EditOptionSetPage() {
         content: "Option sets",
         url: "/app/option-sets",
       }}
+      secondaryActions={[
+        {
+          content: "Build options",
+          url: `/app/option-sets/${optionSet.id}/builder`,
+        },
+      ]}
     >
       <BlockStack gap="500">
         {wasDuplicated ? (
