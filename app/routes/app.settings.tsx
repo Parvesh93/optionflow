@@ -1,13 +1,11 @@
-import { Card, Page, Text } from "@shopify/polaris";
+export {
+  settingsLoader as loader,
+} from "~/features/settings/loader.server";
 
-export default function SettingsPage() {
-  return (
-    <Page title="Settings">
-      <Card>
-        <Text as="p">
-          OptionFlow application settings will appear here.
-        </Text>
-      </Card>
-    </Page>
-  );
-}
+export {
+  settingsAction as action,
+} from "~/features/settings/action.server";
+
+export {
+  default,
+} from "~/features/settings/pages/SettingsPage";
