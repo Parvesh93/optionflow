@@ -36,9 +36,14 @@ export async function productAssignmentsLoader({
     );
 
     const url = new URL(request.url);
-    const search = url.searchParams.get("search")?.trim() ?? "";
+    const search =
+      url.searchParams.get("search")?.trim() ?? "";
+    const after =
+      url.searchParams.get("after")?.trim() || undefined;
+    const before =
+      url.searchParams.get("before")?.trim() || undefined;
 
-    const [assignments, products] = await Promise.all([
+    const [assignments, productResult] = await Promise.all([
       productAssignmentService.list(
         shop.id,
         optionSetId,
@@ -46,6 +51,10 @@ export async function productAssignmentsLoader({
       productAssignmentService.searchProducts(
         admin,
         search,
+        {
+          after,
+          before,
+        },
       ),
     ]);
 
@@ -63,12 +72,15 @@ export async function productAssignmentsLoader({
       },
       search,
       assignments,
-      products: products.map((product) => ({
-        ...product,
-        assignedToThisSet: assignedProductIds.has(
-          product.id,
-        ),
-      })),
+      products: productResult.products.map(
+        (product) => ({
+          ...product,
+          assignedToThisSet: assignedProductIds.has(
+            product.id,
+          ),
+        }),
+      ),
+      pageInfo: productResult.pageInfo,
     };
   } catch (error) {
     if (error instanceof OptionSetNotFoundError) {
