@@ -65,9 +65,9 @@ export async function optionBuilderAction({
             "NONE",
           priceAdjustmentValue:
             getString(formData, "priceAdjustmentValue"),
-          valuesText: getString(
+          valuesJson: getString(
             formData,
-            "valuesText",
+            "valuesJson",
           ),
         },
       );
