@@ -62,9 +62,7 @@ export const productAssignmentService = {
       `,
       {
         variables: {
-          query: search.trim()
-            ? `title:*${search.trim()}*`
-            : null,
+          query: search.trim() || null,
         },
       },
     );
