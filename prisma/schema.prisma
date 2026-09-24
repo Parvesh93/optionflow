@@ -88,6 +88,11 @@ model Shop {
   updatedAt      DateTime   @updatedAt
   deletedAt      DateTime?
 
+  pricingAddonProductGid  String?
+  pricingAddonVariantGid  String?
+  pricingCartTransformId  String?
+  pricingEnabledAt        DateTime?
+
   optionSets   OptionSet[]
   assignments ProductAssignment[]
 
