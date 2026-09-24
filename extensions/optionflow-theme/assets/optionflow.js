@@ -224,12 +224,13 @@
     if (root.dataset.optionflowInitialized) return;
     root.dataset.optionflowInitialized = "1";
 
-    const handle = root.dataset.optionflowHandle || "";
+    const productGid =
+      root.dataset.optionflowProductGid || "";
     const form = productForm(root);
 
-    if (!handle) {
+    if (!productGid) {
       root.innerHTML =
-        '<div class="optionflow-product-options__message">Select an OptionFlow option set in the theme editor.</div>';
+        '<div class="optionflow-product-options__message">OptionFlow is available on product pages.</div>';
       return;
     }
 
@@ -241,8 +242,8 @@
 
     try {
       const response = await fetch(
-        "/apps/optionflow?handle=" +
-          encodeURIComponent(handle),
+        "/apps/optionflow?productGid=" +
+          encodeURIComponent(productGid),
         { headers: { Accept: "application/json" } },
       );
       const payload = await response.json();
@@ -342,7 +343,7 @@
               error.className =
                 "optionflow-field__error";
               error.textContent =
-                "Please complete this required option.";
+                "Please complete this option.";
               error.style.color = "rgb(180, 0, 0)";
               entry.wrap.appendChild(error);
             }
