@@ -103,32 +103,104 @@ function parseValues(type: OptionFieldType, raw: string) {
     return [];
   }
 
-  return raw
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => {
-      const [rawLabel, rawType = "NONE", rawValue = ""] =
-        line.split("|").map((part) => part.trim());
+  let parsed: unknown;
 
-      const label = rawLabel;
-      const priceAdjustmentType =
-        parseAdjustmentType(rawType || "NONE");
-      const priceAdjustmentValue =
-        parseAdjustmentValue(
-          priceAdjustmentType,
-          rawValue,
-        );
+  try {
+    parsed = JSON.parse(raw || "[]");
+  } catch {
+    throw new OptionFieldValidationError(
+      "Choice data is invalid. Please review the option choices.",
+    );
+  }
 
-      return {
-        label,
-        value:
-          slugifyValue(label) || `value-${index + 1}`,
-        position: index,
+  if (!Array.isArray(parsed)) {
+    throw new OptionFieldValidationError(
+      "Choice data is invalid. Please review the option choices.",
+    );
+  }
+
+  if (parsed.length === 0) {
+    throw new OptionFieldValidationError(
+      "Add at least one choice.",
+    );
+  }
+
+  if (parsed.length > 100) {
+    throw new OptionFieldValidationError(
+      "A field can contain a maximum of 100 choices.",
+    );
+  }
+
+  const seenValues = new Set<string>();
+
+  return parsed.map((entry, index) => {
+    if (
+      !entry ||
+      typeof entry !== "object" ||
+      !("label" in entry)
+    ) {
+      throw new OptionFieldValidationError(
+        `Choice ${index + 1} needs a label.`,
+      );
+    }
+
+    const choice = entry as {
+      label?: unknown;
+      priceAdjustmentType?: unknown;
+      priceAdjustmentValue?: unknown;
+    };
+
+    const label =
+      typeof choice.label === "string"
+        ? choice.label.trim()
+        : "";
+
+    if (!label) {
+      throw new OptionFieldValidationError(
+        `Choice ${index + 1} needs a label.`,
+      );
+    }
+
+    if (label.length > 100) {
+      throw new OptionFieldValidationError(
+        `Choice ${index + 1} must be 100 characters or fewer.`,
+      );
+    }
+
+    const value =
+      slugifyValue(label) || `value-${index + 1}`;
+
+    if (seenValues.has(value)) {
+      throw new OptionFieldValidationError(
+        "Choice labels must be unique.",
+      );
+    }
+
+    seenValues.add(value);
+
+    const priceAdjustmentType =
+      parseAdjustmentType(
+        typeof choice.priceAdjustmentType === "string"
+          ? choice.priceAdjustmentType
+          : "NONE",
+      );
+
+    const priceAdjustmentValue =
+      parseAdjustmentValue(
         priceAdjustmentType,
-        priceAdjustmentValue,
-      };
-    });
+        typeof choice.priceAdjustmentValue === "string"
+          ? choice.priceAdjustmentValue
+          : "",
+      );
+
+    return {
+      label,
+      value,
+      position: index,
+      priceAdjustmentType,
+      priceAdjustmentValue,
+    };
+  });
 }
 
 type RepositoryBuilder = NonNullable<
@@ -193,7 +265,7 @@ export const optionFieldService = {
       isRequired: boolean;
       priceAdjustmentType: string;
       priceAdjustmentValue: string;
-      valuesText: string;
+      valuesJson: string;
     },
   ) {
     const label = input.label.trim();
@@ -211,7 +283,7 @@ export const optionFieldService = {
     }
 
     const type = parseType(input.type);
-    const values = parseValues(type, input.valuesText);
+    const values = parseValues(type, input.valuesJson);
 
     const fieldPriceAdjustmentType =
       type === "SELECT" || type === "RADIO"
