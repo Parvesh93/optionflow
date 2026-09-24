@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { data, redirect } from "react-router";
 
+import { pricingInfrastructureService } from "~/features/pricing/services/pricingInfrastructure.service";
 import { authenticate } from "~/shopify.server";
 import { ensureShop } from "~/services/shop.server";
 
@@ -127,7 +128,7 @@ export async function updateOptionSetAction({
   request,
   params,
 }: ActionFunctionArgs) {
-  const { session } =
+  const { admin, session } =
     await authenticate.admin(request);
 
   const optionSetId = params.optionSetId;
@@ -201,6 +202,12 @@ export async function updateOptionSetAction({
       result.data,
     );
 
+    await pricingInfrastructureService.syncOptionSet(
+      admin,
+      shop.id,
+      optionSetId,
+    );
+
     return redirect(
       `/app/option-sets?updated=${encodeURIComponent(
         optionSetId,
@@ -263,7 +270,8 @@ export async function duplicateOptionSetAction({
   params,
 }: ActionFunctionArgs) {
   try {
-    const { session } = await authenticate.admin(request);
+    const { admin, session } =
+    await authenticate.admin(request);
     const optionSetId = params.optionSetId;
 
     if (!optionSetId) {
@@ -338,6 +346,12 @@ async function changeOptionSetArchiveState(
       await optionSetService.restore(shop.id, optionSetId);
     }
 
+    await pricingInfrastructureService.syncOptionSet(
+      admin,
+      shop.id,
+      optionSetId,
+    );
+
     const parameter = mode === "archive" ? "archived" : "restored";
 
     return redirect(
@@ -391,7 +405,8 @@ export async function deleteOptionSetAction({
   request,
   params,
 }: ActionFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } =
+    await authenticate.admin(request);
   const optionSetId = params.optionSetId;
 
   if (!optionSetId) {
@@ -406,6 +421,12 @@ export async function deleteOptionSetAction({
   });
 
   try {
+    await pricingInfrastructureService.disableOptionSetProducts(
+      admin,
+      shop.id,
+      optionSetId,
+    );
+
     await optionSetService.softDelete(shop.id, optionSetId);
 
     return redirect(
@@ -436,7 +457,8 @@ export async function deleteOptionSetAction({
 export async function bulkOptionSetAction({
   request,
 }: ActionFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } =
+    await authenticate.admin(request);
   const shop = await ensureShop({
     shopifyDomain: session.shop,
   });
@@ -466,11 +488,31 @@ export async function bulkOptionSetAction({
   }
 
   try {
+    if (action === "delete") {
+      for (const optionSetId of optionSetIds) {
+        await pricingInfrastructureService.disableOptionSetProducts(
+          admin,
+          shop.id,
+          optionSetId,
+        );
+      }
+    }
+
     const result = await optionSetService.bulkAction(
       shop.id,
       optionSetIds,
       action,
     );
+
+    if (action !== "delete") {
+      for (const optionSetId of optionSetIds) {
+        await pricingInfrastructureService.syncOptionSet(
+          admin,
+          shop.id,
+          optionSetId,
+        );
+      }
+    }
 
     const params = new URLSearchParams({
       bulk: action,
