@@ -60,6 +60,12 @@ enum OptionFieldType {
   CHECKBOX
 }
 
+enum PriceAdjustmentType {
+  NONE
+  FIXED
+  PERCENTAGE
+}
+
 model Shop {
   id             String     @id @default(cuid())
   shopifyDomain  String     @unique
@@ -115,8 +121,10 @@ model OptionField {
   label       String
   placeholder String?
   helpText    String?
-  isRequired  Boolean         @default(false)
-  position    Int             @default(0)
+  isRequired          Boolean             @default(false)
+  priceAdjustmentType PriceAdjustmentType @default(NONE)
+  priceAdjustmentValue Decimal?            @db.Decimal(12, 4)
+  position            Int                 @default(0)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   deletedAt   DateTime?
@@ -131,8 +139,10 @@ model OptionValue {
   id            String   @id @default(cuid())
   optionFieldId String
   label         String
-  value         String
-  position      Int      @default(0)
+  value                String
+  priceAdjustmentType  PriceAdjustmentType @default(NONE)
+  priceAdjustmentValue Decimal?            @db.Decimal(12, 4)
+  position             Int                 @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   deletedAt     DateTime?
