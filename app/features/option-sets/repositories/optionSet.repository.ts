@@ -195,7 +195,6 @@ async handleExists(
     where: {
       shopId,
       handle,
-      deletedAt: null,
     },
   });
 
