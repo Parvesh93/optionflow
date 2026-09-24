@@ -137,6 +137,13 @@ export default function EditOptionSetPage() {
               `/app/option-sets/${optionSet.id}/builder`,
             ),
         },
+        {
+          content: "Assign products",
+          onAction: () =>
+            navigate(
+              `/app/option-sets/${optionSet.id}/assignments`,
+            ),
+        },
       ]}
     >
       <BlockStack gap="500">
