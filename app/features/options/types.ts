@@ -11,6 +11,12 @@ export type PriceAdjustmentType =
   | "FIXED"
   | "PERCENTAGE";
 
+export type ConditionOperator =
+  | "EQUALS"
+  | "NOT_EQUALS"
+  | "IS_CHECKED"
+  | "IS_NOT_CHECKED";
+
 export type BuilderValueDTO = {
   id: string;
   label: string;
@@ -18,6 +24,13 @@ export type BuilderValueDTO = {
   position: number;
   priceAdjustmentType: PriceAdjustmentType;
   priceAdjustmentValue: string;
+};
+
+export type BuilderConditionDTO = {
+  id: string;
+  sourceFieldId: string;
+  operator: ConditionOperator;
+  expectedValue: string;
 };
 
 export type BuilderFieldDTO = {
@@ -31,6 +44,7 @@ export type BuilderFieldDTO = {
   priceAdjustmentValue: string;
   position: number;
   values: BuilderValueDTO[];
+  condition: BuilderConditionDTO | null;
 };
 
 export type OptionBuilderDTO = {
