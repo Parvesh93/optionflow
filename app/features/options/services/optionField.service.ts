@@ -185,6 +185,26 @@ export const optionFieldService = {
     }
   },
 
+  async reorderFields(
+    shopId: string,
+    optionSetId: string,
+    orderedFieldIds: string[],
+  ) {
+    if (orderedFieldIds.length === 0) {
+      return;
+    }
+
+    const reordered = await optionFieldRepository.reorderFields(
+      shopId,
+      optionSetId,
+      orderedFieldIds,
+    );
+
+    if (!reordered) {
+      throw new OptionBuilderNotFoundError();
+    }
+  },
+
   async moveField(
     shopId: string,
     optionSetId: string,
