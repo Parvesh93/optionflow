@@ -273,6 +273,31 @@ async update(
   };
 },
 
+  async softDelete(
+    shopId: string,
+    optionSetId: string,
+  ) {
+    const current = await optionSetRepository.findById(
+      shopId,
+      optionSetId,
+    );
+
+    if (!current) {
+      throw new OptionSetNotFoundError();
+    }
+
+    const deleted = await optionSetRepository.softDelete(
+      shopId,
+      optionSetId,
+    );
+
+    if (!deleted) {
+      throw new OptionSetNotFoundError();
+    }
+
+    return { id: optionSetId };
+  },
+
   async archive(
     shopId: string,
     optionSetId: string,
