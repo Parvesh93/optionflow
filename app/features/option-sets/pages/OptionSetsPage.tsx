@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Banner,
@@ -35,21 +35,43 @@ type OptionSetRowActionsProps = {
   optionSetId: string;
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   onEdit: () => void;
+  onEditDuplicate: (optionSetId: string) => void;
 };
 
 function OptionSetRowActions({
   optionSetId,
   status,
   onEdit,
+  onEditDuplicate,
 }: OptionSetRowActionsProps) {
   const fetcher = useFetcher();
   const [active, setActive] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const busy = fetcher.state !== "idle";
 
+  useEffect(() => {
+    const result = fetcher.data as
+      | { success?: boolean; duplicatedId?: string }
+      | undefined;
+
+    if (
+      fetcher.state === "idle" &&
+      result?.success &&
+      result.duplicatedId
+    ) {
+      onEditDuplicate(result.duplicatedId);
+    }
+  }, [fetcher.state, fetcher.data]);
+
   const submitAction = (action: "duplicate" | "archive" | "restore") => {
+    const formData = new FormData();
+
+    if (action === "duplicate") {
+      formData.set("responseMode", "json");
+    }
+
     fetcher.submit(
-      {},
+      formData,
       {
         method: "post",
         action: `/app/option-sets/${optionSetId}/${action}`,
@@ -433,6 +455,11 @@ export default function OptionSetsPage() {
             status={optionSet.status}
             onEdit={() =>
               navigate(`/app/option-sets/${optionSet.id}/edit`)
+            }
+            onEditDuplicate={(duplicatedId) =>
+              navigate(
+                `/app/option-sets/${duplicatedId}/edit?duplicated=1`,
+              )
             }
           />
         </IndexTable.Cell>
