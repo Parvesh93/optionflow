@@ -6,11 +6,18 @@ export type BuilderFieldType =
   | "RADIO"
   | "CHECKBOX";
 
+export type PriceAdjustmentType =
+  | "NONE"
+  | "FIXED"
+  | "PERCENTAGE";
+
 export type BuilderValueDTO = {
   id: string;
   label: string;
   value: string;
   position: number;
+  priceAdjustmentType: PriceAdjustmentType;
+  priceAdjustmentValue: string;
 };
 
 export type BuilderFieldDTO = {
@@ -20,6 +27,8 @@ export type BuilderFieldDTO = {
   placeholder: string;
   helpText: string;
   isRequired: boolean;
+  priceAdjustmentType: PriceAdjustmentType;
+  priceAdjustmentValue: string;
   position: number;
   values: BuilderValueDTO[];
 };
