@@ -230,13 +230,13 @@
 
     if (!productGid) {
       root.innerHTML =
-        '<div class="optionflow-product-options__message">OptionFlow is available on product pages.</div>';
+        '<div class="optionflow-product-options__message">Product unavailable.</div>';
       return;
     }
 
     if (!form) {
       root.innerHTML =
-        '<div class="optionflow-product-options__message">OptionFlow could not find the product form.</div>';
+        '<div class="optionflow-product-options__message">Product form not found.</div>';
       return;
     }
 
@@ -248,10 +248,13 @@
       );
       const payload = await response.json();
 
+      if (response.status === 404) {
+        root.hidden = true;
+        return;
+      }
+
       if (!response.ok || !payload.ok) {
-        throw new Error(
-          payload.error || "Unable to load options.",
-        );
+        throw new Error(payload.error || "Load failed.");
       }
 
       const optionSet = payload.optionSet;
