@@ -28,14 +28,18 @@ export async function loader({
     );
   }
 
+  const url = new URL(request.url);
+  const productGid =
+    url.searchParams.get("productGid") ?? "";
   const handle =
-    new URL(request.url).searchParams.get("handle") ?? "";
+    url.searchParams.get("handle") ?? "";
 
-  if (!handle.trim()) {
+  if (!productGid.trim() && !handle.trim()) {
     return data(
       {
         ok: false,
-        error: "Option set handle is required.",
+        error:
+          "A product assignment or option set handle is required.",
       },
       {
         status: 400,
@@ -48,6 +52,7 @@ export async function loader({
 
   const optionSet = await getStorefrontOptionSet(
     shop,
+    productGid,
     handle,
   );
 
@@ -56,7 +61,7 @@ export async function loader({
       {
         ok: false,
         error:
-          "Published option set not found for this store.",
+          "No published OptionFlow option set is assigned to this product.",
       },
       {
         status: 404,
