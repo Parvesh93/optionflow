@@ -77,6 +77,51 @@ export async function optionBuilderAction({
       );
     }
 
+    if (intent === "saveCondition") {
+      const targetFieldId = getString(
+        formData,
+        "targetFieldId",
+      );
+
+      await optionFieldService.saveCondition(
+        shop.id,
+        optionSetId,
+        targetFieldId,
+        {
+          sourceFieldId: getString(
+            formData,
+            "sourceFieldId",
+          ),
+          operator: getString(formData, "operator"),
+          expectedValue: getString(
+            formData,
+            "expectedValue",
+          ),
+        },
+      );
+
+      return redirect(
+        `/app/option-sets/${optionSetId}/builder?conditionSaved=1`,
+      );
+    }
+
+    if (intent === "removeCondition") {
+      const targetFieldId = getString(
+        formData,
+        "targetFieldId",
+      );
+
+      await optionFieldService.removeCondition(
+        shop.id,
+        optionSetId,
+        targetFieldId,
+      );
+
+      return redirect(
+        `/app/option-sets/${optionSetId}/builder?conditionRemoved=1`,
+      );
+    }
+
     if (intent === "deleteField") {
       const fieldId = getString(formData, "fieldId");
 
