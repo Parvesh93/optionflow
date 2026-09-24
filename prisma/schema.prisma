@@ -51,6 +51,15 @@ enum OptionSetStatus {
   ARCHIVED
 }
 
+enum OptionFieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  SELECT
+  RADIO
+  CHECKBOX
+}
+
 model Shop {
   id             String     @id @default(cuid())
   shopifyDomain  String     @unique
@@ -90,9 +99,45 @@ model OptionSet {
   updatedAt         DateTime        @updatedAt
   deletedAt         DateTime?
 
-  shop Shop @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  shop   Shop          @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  fields OptionField[]
 
   @@unique([shopId, handle])
   @@index([shopId, status, deletedAt])
   @@index([shopId, updatedAt])
+}
+
+
+model OptionField {
+  id          String          @id @default(cuid())
+  optionSetId String
+  type        OptionFieldType
+  label       String
+  placeholder String?
+  helpText    String?
+  isRequired  Boolean         @default(false)
+  position    Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
+
+  optionSet OptionSet     @relation(fields: [optionSetId], references: [id], onDelete: Restrict)
+  values    OptionValue[]
+
+  @@index([optionSetId, position, deletedAt])
+}
+
+model OptionValue {
+  id            String   @id @default(cuid())
+  optionFieldId String
+  label         String
+  value         String
+  position      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  optionField OptionField @relation(fields: [optionFieldId], references: [id], onDelete: Restrict)
+
+  @@index([optionFieldId, position, deletedAt])
 }
