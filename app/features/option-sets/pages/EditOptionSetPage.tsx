@@ -18,7 +18,7 @@ import {
   useActionData,
   useFetcher,
   useLoaderData,
-    useNavigation,
+  useNavigation,
   useSearchParams,
   useSubmit,
 } from "react-router";
@@ -49,7 +49,8 @@ export default function EditOptionSetPage() {
     >();
 
   const navigation = useNavigation();
-      const archiveFetcher = useFetcher();
+  const submit = useSubmit();
+  const archiveFetcher = useFetcher();
   const deleteFetcher = useFetcher();
   const [searchParams] = useSearchParams();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -249,87 +250,94 @@ export default function EditOptionSetPage() {
             </Card>
 
             <InlineStack
-              align="end"
+              align="space-between"
               gap="300"
+              wrap
             >
-              <Button
-                url="/app/option-sets"
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
+              <InlineStack gap="300" wrap>
+                <Button
+                  onClick={() => {
+                    submit(
+                      {},
+                      {
+                        method: "post",
+                        action: `/app/option-sets/${optionSet.id}/duplicate`,
+                      },
+                    );
+                  }}
+                  disabled={
+                    isSubmitting ||
+                    isChangingArchiveState ||
+                    isDeleting
+                  }
+                >
+                  Duplicate
+                </Button>
 
-              <Button
-                submit
-                variant="primary"
-                loading={isSubmitting}
-              >
-                Save changes
-              </Button>
+                <Button
+                  tone={
+                    optionSet.status === "ARCHIVED"
+                      ? undefined
+                      : "critical"
+                  }
+                  onClick={() => {
+                    const mode =
+                      optionSet.status === "ARCHIVED"
+                        ? "restore"
+                        : "archive";
+
+                    archiveFetcher.submit(
+                      {},
+                      {
+                        method: "post",
+                        action: `/app/option-sets/${optionSet.id}/${mode}`,
+                      },
+                    );
+                  }}
+                  loading={isChangingArchiveState}
+                  disabled={
+                    isSubmitting ||
+                    isChangingArchiveState ||
+                    isDeleting
+                  }
+                >
+                  {optionSet.status === "ARCHIVED"
+                    ? "Restore"
+                    : "Archive"}
+                </Button>
+
+                <Button
+                  tone="critical"
+                  onClick={() => setDeleteModalOpen(true)}
+                  disabled={
+                    isSubmitting ||
+                    isChangingArchiveState ||
+                    isDeleting
+                  }
+                >
+                  Delete
+                </Button>
+              </InlineStack>
+
+              <InlineStack gap="300">
+                <Button
+                  url="/app/option-sets"
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  submit
+                  variant="primary"
+                  loading={isSubmitting}
+                >
+                  Save changes
+                </Button>
+              </InlineStack>
             </InlineStack>
           </BlockStack>
         </Form>
-
-        <InlineStack gap="300">
-          <Button
-            onClick={() => {
-              submit(
-                {},
-                {
-                  method: "post",
-                  action: `/app/option-sets/${optionSet.id}/duplicate`,
-                },
-              );
-            }}
-            disabled={
-              isSubmitting ||
-              isChangingArchiveState ||
-              isDeleting
-            }
-          >
-            Duplicate
-          </Button>
-
-          <Button
-            tone={optionSet.status === "ARCHIVED" ? undefined : "critical"}
-            onClick={() => {
-              const mode =
-                optionSet.status === "ARCHIVED"
-                  ? "restore"
-                  : "archive";
-
-              archiveFetcher.submit(
-                {},
-                {
-                  method: "post",
-                  action: `/app/option-sets/${optionSet.id}/${mode}`,
-                },
-              );
-            }}
-            loading={isChangingArchiveState}
-            disabled={
-              isSubmitting ||
-              isChangingArchiveState ||
-              isDeleting
-            }
-          >
-            {optionSet.status === "ARCHIVED"
-              ? "Restore"
-              : "Archive"}
-          </Button>
-
-          <Button
-            tone="critical"
-            onClick={() => setDeleteModalOpen(true)}
-            disabled={
-              isSubmitting ||
-              isChangingArchiveState ||
-              isDeleting
-            }
-          >
-            Delete
-          </Button>
-        </InlineStack>
 
         <Modal
           open={deleteModalOpen}
