@@ -9,7 +9,7 @@ description = "Applies OptionFlow product option price adjustments."
   [[extensions.targeting]]
   target = "cart.transform.run"
   input_query = "src/cart_transform_run.graphql"
-  export = "cartTransformRun"
+  export = "cart-transform-run"
 
   [extensions.build]
   command = ""
