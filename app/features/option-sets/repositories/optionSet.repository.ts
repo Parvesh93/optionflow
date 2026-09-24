@@ -43,6 +43,17 @@ type UpdateOptionSetRepositoryInput = {
   expectedRevision: number;
 };
 
+type DuplicateOptionSetRepositoryInput = {
+  shopId: string;
+  name: string;
+  handle: string;
+  description: string | null;
+  internalNote: string | null;
+  displayTitle: string | null;
+  tags: Prisma.InputJsonValue | null;
+  priority: number;
+};
+
 function buildWhere({
   shopId,
   search,
@@ -253,6 +264,28 @@ async update(
     },
   });
 },
+
+  async duplicate(
+    input: DuplicateOptionSetRepositoryInput,
+    client: OptionSetRepositoryClient = prisma,
+  ) {
+    return client.optionSet.create({
+      data: {
+        shopId: input.shopId,
+        name: input.name,
+        handle: input.handle,
+        description: input.description,
+        internalNote: input.internalNote,
+        displayTitle: input.displayTitle,
+        tags: input.tags === null ? undefined : input.tags,
+        priority: input.priority,
+        status: "DRAFT",
+        revision: 1,
+        publishedRevision: null,
+        publishedAt: null,
+      },
+    });
+  },
 
   async findByHandle(
     shopId: string,
