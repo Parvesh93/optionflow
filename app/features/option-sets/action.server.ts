@@ -270,8 +270,8 @@ export async function duplicateOptionSetAction({
   params,
 }: ActionFunctionArgs) {
   try {
-    const { admin, session } =
-    await authenticate.admin(request);
+    const { session } =
+      await authenticate.admin(request);
     const optionSetId = params.optionSetId;
 
     if (!optionSetId) {
@@ -326,7 +326,8 @@ async function changeOptionSetArchiveState(
   optionSetId: string | undefined,
   mode: "archive" | "restore",
 ) {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } =
+    await authenticate.admin(request);
 
   if (!optionSetId) {
     return data(
