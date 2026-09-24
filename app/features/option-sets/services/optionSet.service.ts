@@ -80,7 +80,7 @@ function toListItemDTO(
     handle: optionSet.handle,
     description: optionSet.description,
     status: optionSet.status,
-    assignedProducts: 0,
+    assignedProducts: optionSet._count.assignments,
     createdAt: optionSet.createdAt.toISOString(),
     updatedAt: optionSet.updatedAt.toISOString(),
     publishedAt:
