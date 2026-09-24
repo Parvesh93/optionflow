@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Banner,
@@ -18,9 +18,9 @@ import {
   useActionData,
   useFetcher,
   useLoaderData,
+  useNavigate,
   useNavigation,
   useSearchParams,
-  useSubmit,
 } from "react-router";
 
 import { OFPage } from "~/components/ui";
@@ -49,7 +49,8 @@ export default function EditOptionSetPage() {
     >();
 
   const navigation = useNavigation();
-  const submit = useSubmit();
+  const navigate = useNavigate();
+  const duplicateFetcher = useFetcher();
   const archiveFetcher = useFetcher();
   const deleteFetcher = useFetcher();
   const [searchParams] = useSearchParams();
@@ -61,11 +62,42 @@ export default function EditOptionSetPage() {
   const isSubmitting =
     navigation.state === "submitting";
 
+  const isDuplicating =
+    duplicateFetcher.state !== "idle";
+
   const isChangingArchiveState =
     archiveFetcher.state !== "idle";
 
   const isDeleting =
     deleteFetcher.state !== "idle";
+
+  useEffect(() => {
+    const result = duplicateFetcher.data as
+      | {
+          success?: boolean;
+          duplicatedId?: string;
+          formError?: string;
+        }
+      | undefined;
+
+    if (
+      duplicateFetcher.state === "idle" &&
+      result?.success &&
+      result.duplicatedId
+    ) {
+      navigate(
+        `/app/option-sets/${result.duplicatedId}/edit?duplicated=1`,
+      );
+    }
+  }, [duplicateFetcher.state, duplicateFetcher.data, navigate]);
+
+  const duplicateError =
+    duplicateFetcher.state === "idle" &&
+    duplicateFetcher.data &&
+    typeof duplicateFetcher.data === "object" &&
+    "formError" in duplicateFetcher.data
+      ? String(duplicateFetcher.data.formError || "")
+      : "";
 
   const [name, setName] = useState(
     actionData?.values.name ??
@@ -107,6 +139,15 @@ export default function EditOptionSetPage() {
             <p>
               A draft copy was created. Review it and save any changes.
             </p>
+          </Banner>
+        ) : null}
+
+        {duplicateError ? (
+          <Banner
+            tone="critical"
+            title="Unable to duplicate option set"
+          >
+            <p>{duplicateError}</p>
           </Banner>
         ) : null}
 
@@ -257,16 +298,18 @@ export default function EditOptionSetPage() {
               <InlineStack gap="300" wrap>
                 <Button
                   onClick={() => {
-                    submit(
-                      {},
+                    duplicateFetcher.submit(
+                      new FormData(),
                       {
                         method: "post",
                         action: `/app/option-sets/${optionSet.id}/duplicate`,
                       },
                     );
                   }}
+                  loading={isDuplicating}
                   disabled={
                     isSubmitting ||
+                    isDuplicating ||
                     isChangingArchiveState ||
                     isDeleting
                   }
