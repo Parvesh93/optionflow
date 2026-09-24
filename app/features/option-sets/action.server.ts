@@ -276,11 +276,21 @@ export async function duplicateOptionSetAction({
     shopifyDomain: session.shop,
   });
 
+  const formData = await request.formData();
+  const responseMode = getString(formData, "responseMode");
+
   try {
     const duplicated = await optionSetService.duplicate(
       shop.id,
       optionSetId,
     );
+
+    if (responseMode === "json") {
+      return data({
+        success: true,
+        duplicatedId: duplicated.id,
+      });
+    }
 
     return redirect(
       `/app/option-sets/${duplicated.id}/edit?duplicated=1`,
