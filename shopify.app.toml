@@ -14,9 +14,15 @@ api_version = "2026-10"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products"
+scopes = "write_products,write_app_proxy"
 
 [auth]
 redirect_urls = [
   "https://optionflow-production-c6b5.up.railway.app/auth/callback"
 ]
+
+
+[app_proxy]
+url = "/storefront/optionflow"
+prefix = "apps"
+subpath = "optionflow"
