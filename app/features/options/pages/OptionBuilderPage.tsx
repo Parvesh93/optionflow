@@ -481,11 +481,231 @@ function FieldPreview({
   );
 }
 
-function SortableFieldEditor({
+function ConditionEditor({
   field,
+  allFields,
   optionSetId,
 }: {
   field: BuilderFieldDTO;
+  allFields: BuilderFieldDTO[];
+  optionSetId: string;
+}) {
+  const fetcher = useFetcher();
+
+  const eligibleSources = allFields.filter(
+    (candidate) =>
+      candidate.id !== field.id &&
+      (candidate.type === "SELECT" ||
+        candidate.type === "RADIO" ||
+        candidate.type === "CHECKBOX"),
+  );
+
+  const initialSource =
+    field.condition?.sourceFieldId ??
+    eligibleSources[0]?.id ??
+    "";
+
+  const [sourceFieldId, setSourceFieldId] =
+    useState(initialSource);
+
+  const sourceField = eligibleSources.find(
+    (candidate) => candidate.id === sourceFieldId,
+  );
+
+  const defaultOperator =
+    sourceField?.type === "CHECKBOX"
+      ? "IS_CHECKED"
+      : "EQUALS";
+
+  const [operator, setOperator] = useState(
+    field.condition?.operator ?? defaultOperator,
+  );
+
+  const [expectedValue, setExpectedValue] =
+    useState(field.condition?.expectedValue ?? "");
+
+  const busy = fetcher.state !== "idle";
+
+  function handleSourceChange(nextSourceId: string) {
+    setSourceFieldId(nextSourceId);
+
+    const nextSource = eligibleSources.find(
+      (candidate) => candidate.id === nextSourceId,
+    );
+
+    if (nextSource?.type === "CHECKBOX") {
+      setOperator("IS_CHECKED");
+      setExpectedValue("");
+      return;
+    }
+
+    setOperator("EQUALS");
+    setExpectedValue(nextSource?.values[0]?.value ?? "");
+  }
+
+  function removeCondition() {
+    const formData = new FormData();
+    formData.set("intent", "removeCondition");
+    formData.set("targetFieldId", field.id);
+
+    fetcher.submit(formData, {
+      method: "post",
+      action: `/app/option-sets/${optionSetId}/builder`,
+    });
+  }
+
+  if (eligibleSources.length === 0) {
+    return (
+      <BlockStack gap="100">
+        <Text as="p" fontWeight="semibold">
+          Conditional visibility
+        </Text>
+        <Text as="p" tone="subdued">
+          Add a dropdown, radio or checkbox field before
+          creating a visibility condition.
+        </Text>
+      </BlockStack>
+    );
+  }
+
+  const operatorOptions =
+    sourceField?.type === "CHECKBOX"
+      ? [
+          {
+            label: "is checked",
+            value: "IS_CHECKED",
+          },
+          {
+            label: "is not checked",
+            value: "IS_NOT_CHECKED",
+          },
+        ]
+      : [
+          {
+            label: "equals",
+            value: "EQUALS",
+          },
+          {
+            label: "does not equal",
+            value: "NOT_EQUALS",
+          },
+        ];
+
+  return (
+    <BlockStack gap="300">
+      <BlockStack gap="050">
+        <Text as="p" fontWeight="semibold">
+          Conditional visibility
+        </Text>
+        <Text as="p" tone="subdued">
+          Show this field only when another option matches
+          the rule below.
+        </Text>
+      </BlockStack>
+
+      <Form
+        method="post"
+        action={`/app/option-sets/${optionSetId}/builder`}
+      >
+        <input
+          type="hidden"
+          name="intent"
+          value="saveCondition"
+        />
+        <input
+          type="hidden"
+          name="targetFieldId"
+          value={field.id}
+        />
+
+        <BlockStack gap="300">
+          <FormLayout>
+            <Select
+              label="Source field"
+              name="sourceFieldId"
+              value={sourceFieldId}
+              options={eligibleSources.map((candidate) => ({
+                label: candidate.label,
+                value: candidate.id,
+              }))}
+              onChange={handleSourceChange}
+            />
+
+            <Select
+              label="Condition"
+              name="operator"
+              value={operator}
+              options={operatorOptions}
+              onChange={setOperator}
+            />
+
+            {sourceField &&
+            sourceField.type !== "CHECKBOX" ? (
+              <Select
+                label="Value"
+                name="expectedValue"
+                value={
+                  expectedValue ||
+                  sourceField.values[0]?.value ||
+                  ""
+                }
+                options={sourceField.values.map((value) => ({
+                  label: value.label,
+                  value: value.value,
+                }))}
+                onChange={setExpectedValue}
+              />
+            ) : (
+              <input
+                type="hidden"
+                name="expectedValue"
+                value=""
+              />
+            )}
+          </FormLayout>
+
+          <InlineStack
+            align="end"
+            gap="200"
+          >
+            {field.condition ? (
+              <Button
+                tone="critical"
+                disabled={busy}
+                onClick={removeCondition}
+              >
+                Remove condition
+              </Button>
+            ) : null}
+
+            <Button
+              submit
+              variant="primary"
+              loading={busy}
+              disabled={
+                !sourceFieldId ||
+                (sourceField?.type !== "CHECKBOX" &&
+                  sourceField?.values.length === 0)
+              }
+            >
+              {field.condition
+                ? "Update condition"
+                : "Add condition"}
+            </Button>
+          </InlineStack>
+        </BlockStack>
+      </Form>
+    </BlockStack>
+  );
+}
+
+function SortableFieldEditor({
+  field,
+  allFields,
+  optionSetId,
+}: {
+  field: BuilderFieldDTO;
+  allFields: BuilderFieldDTO[];
   optionSetId: string;
 }) {
   const fetcher = useFetcher();
@@ -589,6 +809,12 @@ function SortableFieldEditor({
                   {field.isRequired ? (
                     <Text as="span" tone="subdued">
                       Required
+                    </Text>
+                  ) : null}
+
+                  {field.condition ? (
+                    <Text as="span" tone="subdued">
+                      Conditional
                     </Text>
                   ) : null}
                 </InlineStack>
@@ -793,6 +1019,14 @@ function SortableFieldEditor({
                   </InlineStack>
                 </BlockStack>
               </Form>
+
+              <Divider />
+
+              <ConditionEditor
+                field={field}
+                allFields={allFields}
+                optionSetId={optionSetId}
+              />
             </BlockStack>
           </Collapsible>
         </BlockStack>
@@ -884,6 +1118,7 @@ function SortableFieldList({
               <SortableFieldEditor
                 key={field.id}
                 field={field}
+                allFields={orderedFields}
                 optionSetId={optionSetId}
               />
             ))}
@@ -1128,6 +1363,10 @@ export default function OptionBuilderPage() {
   const saved = searchParams.get("saved") === "1";
   const deleted =
     searchParams.get("deleted") === "1";
+  const conditionSaved =
+    searchParams.get("conditionSaved") === "1";
+  const conditionRemoved =
+    searchParams.get("conditionRemoved") === "1";
 
   const listKey = fields
     .map((field) => `${field.id}:${field.position}`)
@@ -1166,6 +1405,28 @@ export default function OptionBuilderPage() {
         {deleted ? (
           <Banner tone="success" title="Option deleted">
             <p>The option field was removed.</p>
+          </Banner>
+        ) : null}
+
+        {conditionSaved ? (
+          <Banner
+            tone="success"
+            title="Condition saved"
+          >
+            <p>
+              Conditional visibility was updated.
+            </p>
+          </Banner>
+        ) : null}
+
+        {conditionRemoved ? (
+          <Banner
+            tone="success"
+            title="Condition removed"
+          >
+            <p>
+              The field is now always visible.
+            </p>
           </Banner>
         ) : null}
 
