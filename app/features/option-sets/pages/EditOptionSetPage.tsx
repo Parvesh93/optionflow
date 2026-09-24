@@ -20,6 +20,7 @@ import {
   useLoaderData,
     useNavigation,
   useSearchParams,
+  useSubmit,
 } from "react-router";
 
 import { OFPage } from "~/components/ui";
@@ -270,14 +271,24 @@ export default function EditOptionSetPage() {
         </Form>
 
         <InlineStack gap="300">
-          <Form
-            method="post"
-            action={`/app/option-sets/${optionSet.id}/duplicate`}
+          <Button
+            onClick={() => {
+              submit(
+                {},
+                {
+                  method: "post",
+                  action: `/app/option-sets/${optionSet.id}/duplicate`,
+                },
+              );
+            }}
+            disabled={
+              isSubmitting ||
+              isChangingArchiveState ||
+              isDeleting
+            }
           >
-            <Button submit>
-              Duplicate
-            </Button>
-          </Form>
+            Duplicate
+          </Button>
 
           <Button
             tone={optionSet.status === "ARCHIVED" ? undefined : "critical"}
