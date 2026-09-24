@@ -51,6 +51,7 @@ import type { optionBuilderLoader } from "../loader.server";
 import type {
   BuilderFieldDTO,
   BuilderFieldType,
+  PriceAdjustmentType,
 } from "../types";
 
 const typeOptions = [
@@ -62,6 +63,12 @@ const typeOptions = [
   { label: "Checkbox", value: "CHECKBOX" },
 ];
 
+const priceAdjustmentOptions = [
+  { label: "No price adjustment", value: "NONE" },
+  { label: "Fixed amount", value: "FIXED" },
+  { label: "Percentage", value: "PERCENTAGE" },
+];
+
 function getTypeLabel(type: BuilderFieldType) {
   return (
     typeOptions.find((option) => option.value === type)
@@ -70,7 +77,34 @@ function getTypeLabel(type: BuilderFieldType) {
 }
 
 function valuesToText(field: BuilderFieldDTO) {
-  return field.values.map((value) => value.label).join("\n");
+  return field.values
+    .map((value) => {
+      if (value.priceAdjustmentType === "NONE") {
+        return value.label;
+      }
+
+      return [
+        value.label,
+        value.priceAdjustmentType,
+        value.priceAdjustmentValue,
+      ].join("|");
+    })
+    .join("\n");
+}
+
+function formatAdjustment(
+  type: PriceAdjustmentType,
+  value: string,
+) {
+  if (type === "NONE" || !value) {
+    return "";
+  }
+
+  if (type === "PERCENTAGE") {
+    return `${Number(value) >= 0 ? "+" : ""}${value}%`;
+  }
+
+  return `${Number(value) >= 0 ? "+" : ""}${value}`;
 }
 
 function FieldPreview({
@@ -87,7 +121,17 @@ function FieldPreview({
         options={[
           { label: "Choose an option", value: "" },
           ...field.values.map((value) => ({
-            label: value.label,
+            label: `${value.label}${
+              formatAdjustment(
+                value.priceAdjustmentType,
+                value.priceAdjustmentValue,
+              )
+                ? ` (${formatAdjustment(
+                    value.priceAdjustmentType,
+                    value.priceAdjustmentValue,
+                  )})`
+                : ""
+            }`,
             value: value.value,
           })),
         ]}
@@ -108,7 +152,17 @@ function FieldPreview({
           field.values.map((value) => (
             <Checkbox
               key={value.id}
-              label={value.label}
+              label={`${value.label}${
+                formatAdjustment(
+                  value.priceAdjustmentType,
+                  value.priceAdjustmentValue,
+                )
+                  ? ` (${formatAdjustment(
+                      value.priceAdjustmentType,
+                      value.priceAdjustmentValue,
+                    )})`
+                  : ""
+              }`}
               checked={false}
               disabled
               onChange={() => undefined}
@@ -126,7 +180,17 @@ function FieldPreview({
   if (field.type === "CHECKBOX") {
     return (
       <Checkbox
-        label={field.label}
+        label={`${field.label}${
+          formatAdjustment(
+            field.priceAdjustmentType,
+            field.priceAdjustmentValue,
+          )
+            ? ` (${formatAdjustment(
+                field.priceAdjustmentType,
+                field.priceAdjustmentValue,
+              )})`
+            : ""
+        }`}
         checked={false}
         disabled
         onChange={() => undefined}
@@ -137,7 +201,17 @@ function FieldPreview({
 
   return (
     <TextField
-      label={field.label}
+      label={`${field.label}${
+        formatAdjustment(
+          field.priceAdjustmentType,
+          field.priceAdjustmentValue,
+        )
+          ? ` (${formatAdjustment(
+              field.priceAdjustmentType,
+              field.priceAdjustmentValue,
+            )})`
+          : ""
+      }`}
       value=""
       onChange={() => undefined}
       autoComplete="off"
@@ -172,6 +246,12 @@ function SortableFieldEditor({
   const [required, setRequired] = useState(
     field.isRequired,
   );
+  const [priceAdjustmentType, setPriceAdjustmentType] =
+    useState<PriceAdjustmentType>(
+      field.priceAdjustmentType,
+    );
+  const [priceAdjustmentValue, setPriceAdjustmentValue] =
+    useState(field.priceAdjustmentValue);
   const [valuesText, setValuesText] = useState(
     valuesToText(field),
   );
@@ -362,6 +442,57 @@ function SortableFieldEditor({
                       onChange={setRequired}
                     />
 
+                    {!supportsValues ? (
+                      <>
+                        <Select
+                          label="Price adjustment"
+                          name="priceAdjustmentType"
+                          value={priceAdjustmentType}
+                          options={priceAdjustmentOptions}
+                          onChange={(value) =>
+                            setPriceAdjustmentType(
+                              value as PriceAdjustmentType,
+                            )
+                          }
+                        />
+
+                        {priceAdjustmentType !== "NONE" ? (
+                          <TextField
+                            label={
+                              priceAdjustmentType === "PERCENTAGE"
+                                ? "Percentage adjustment"
+                                : "Fixed price adjustment"
+                            }
+                            name="priceAdjustmentValue"
+                            value={priceAdjustmentValue}
+                            onChange={setPriceAdjustmentValue}
+                            autoComplete="off"
+                            type="number"
+                            helpText="Use a negative value for a discount."
+                          />
+                        ) : (
+                          <input
+                            type="hidden"
+                            name="priceAdjustmentValue"
+                            value=""
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          type="hidden"
+                          name="priceAdjustmentType"
+                          value="NONE"
+                        />
+                        <input
+                          type="hidden"
+                          name="priceAdjustmentValue"
+                          value=""
+                        />
+                      </>
+                    )}
+
                     {supportsValues ? (
                       <TextField
                         label="Choices"
@@ -370,7 +501,7 @@ function SortableFieldEditor({
                         onChange={setValuesText}
                         autoComplete="off"
                         multiline={5}
-                        helpText="Enter one choice per line."
+                        helpText="One choice per line. Optional pricing format: Label|FIXED|10 or Label|PERCENTAGE|5. Use negative values for discounts."
                       />
                     ) : (
                       <input
@@ -505,6 +636,10 @@ function AddFieldCard({
   const [placeholder, setPlaceholder] = useState("");
   const [helpText, setHelpText] = useState("");
   const [required, setRequired] = useState(false);
+  const [priceAdjustmentType, setPriceAdjustmentType] =
+    useState<PriceAdjustmentType>("NONE");
+  const [priceAdjustmentValue, setPriceAdjustmentValue] =
+    useState("");
   const [valuesText, setValuesText] = useState("");
 
   const supportsValues =
@@ -610,6 +745,57 @@ function AddFieldCard({
                     checked={required}
                     onChange={setRequired}
                   />
+
+                  {!supportsValues ? (
+                    <>
+                      <Select
+                        label="Price adjustment"
+                        name="priceAdjustmentType"
+                        value={priceAdjustmentType}
+                        options={priceAdjustmentOptions}
+                        onChange={(value) =>
+                          setPriceAdjustmentType(
+                            value as PriceAdjustmentType,
+                          )
+                        }
+                      />
+
+                      {priceAdjustmentType !== "NONE" ? (
+                        <TextField
+                          label={
+                            priceAdjustmentType === "PERCENTAGE"
+                              ? "Percentage adjustment"
+                              : "Fixed price adjustment"
+                          }
+                          name="priceAdjustmentValue"
+                          value={priceAdjustmentValue}
+                          onChange={setPriceAdjustmentValue}
+                          autoComplete="off"
+                          type="number"
+                          helpText="Use a negative value for a discount."
+                        />
+                      ) : (
+                        <input
+                          type="hidden"
+                          name="priceAdjustmentValue"
+                          value=""
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <input
+                        type="hidden"
+                        name="priceAdjustmentType"
+                        value="NONE"
+                      />
+                      <input
+                        type="hidden"
+                        name="priceAdjustmentValue"
+                        value=""
+                      />
+                    </>
+                  )}
 
                   {supportsValues ? (
                     <TextField
