@@ -1396,6 +1396,13 @@ export default function OptionBuilderPage() {
               `/app/option-sets/${optionSet.id}/edit`,
             ),
         },
+        {
+          content: "Assign products",
+          onAction: () =>
+            navigate(
+              `/app/option-sets/${optionSet.id}/assignments`,
+            ),
+        },
       ]}
     >
       <BlockStack gap="500">
