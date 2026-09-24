@@ -424,6 +424,8 @@ async update(
               placeholder: true,
               helpText: true,
               isRequired: true,
+              priceAdjustmentType: true,
+              priceAdjustmentValue: true,
               position: true,
               values: {
                 where: {
@@ -436,6 +438,8 @@ async update(
                 select: {
                   label: true,
                   value: true,
+                  priceAdjustmentType: true,
+                  priceAdjustmentValue: true,
                   position: true,
                 },
               },
@@ -472,11 +476,19 @@ async update(
               placeholder: field.placeholder,
               helpText: field.helpText,
               isRequired: field.isRequired,
+              priceAdjustmentType:
+                field.priceAdjustmentType,
+              priceAdjustmentValue:
+                field.priceAdjustmentValue,
               position: field.position,
               values: {
                 create: field.values.map((value) => ({
                   label: value.label,
                   value: value.value,
+                  priceAdjustmentType:
+                    value.priceAdjustmentType,
+                  priceAdjustmentValue:
+                    value.priceAdjustmentValue,
                   position: value.position,
                 })),
               },
