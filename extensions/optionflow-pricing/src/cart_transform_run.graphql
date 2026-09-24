@@ -1,0 +1,42 @@
+query CartTransformRunInput {
+  presentmentCurrencyRate
+  cart {
+    lines {
+      id
+      cost {
+        amountPerQuantity {
+          amount
+          currencyCode
+        }
+      }
+      optionflowSelection: attribute(
+        key: "_optionflow_selection"
+      ) {
+        value
+      }
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+          title
+          product {
+            optionflowPricing: metafield(
+              namespace: "$app:optionflow"
+              key: "pricing-config"
+            ) {
+              jsonValue
+            }
+          }
+        }
+      }
+    }
+  }
+  cartTransform {
+    optionflowConfig: metafield(
+      namespace: "$app:optionflow"
+      key: "pricing-config"
+    ) {
+      jsonValue
+    }
+  }
+}
