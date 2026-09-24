@@ -255,6 +255,51 @@ export const optionFieldRepository = {
     });
   },
 
+  async reorderFields(
+    shopId: string,
+    optionSetId: string,
+    orderedFieldIds: string[],
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.optionField.findMany({
+        where: {
+          optionSetId,
+          optionSet: {
+            shopId,
+            deletedAt: null,
+          },
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      const uniqueIds = new Set(orderedFieldIds);
+
+      if (
+        existing.length !== orderedFieldIds.length ||
+        uniqueIds.size !== orderedFieldIds.length ||
+        !existing.every((field) => uniqueIds.has(field.id))
+      ) {
+        return false;
+      }
+
+      for (const [position, fieldId] of orderedFieldIds.entries()) {
+        await tx.optionField.update({
+          where: {
+            id: fieldId,
+          },
+          data: {
+            position,
+          },
+        });
+      }
+
+      return true;
+    });
+  },
+
   async moveField(
     shopId: string,
     optionSetId: string,
