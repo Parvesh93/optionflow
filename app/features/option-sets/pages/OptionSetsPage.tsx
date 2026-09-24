@@ -195,19 +195,16 @@ export default function OptionSetsPage() {
   );
 
   const wasUpdated = Boolean(
-  searchParams.get("updated"),
-);
+    searchParams.get("updated"),
+  );
 
-{wasUpdated ? (
-  <Banner
-    tone="success"
-    title="Option set updated"
-  >
-    <p>
-      Your changes were saved successfully.
-    </p>
-  </Banner>
-) : null}
+  const wasArchived = Boolean(
+    searchParams.get("archived"),
+  );
+
+  const wasRestored = Boolean(
+    searchParams.get("restored"),
+  );
 
   const hasFilters =
     Boolean(filters.search) ||
@@ -308,6 +305,37 @@ export default function OptionSetsPage() {
       }}
     >
       <BlockStack gap="500">
+        {wasUpdated ? (
+          <Banner
+            tone="success"
+            title="Option set updated"
+          >
+            <p>Your changes were saved successfully.</p>
+          </Banner>
+        ) : null}
+
+        {wasArchived ? (
+          <Banner
+            tone="success"
+            title="Option set archived"
+          >
+            <p>
+              The option set has been archived and is no longer published.
+            </p>
+          </Banner>
+        ) : null}
+
+        {wasRestored ? (
+          <Banner
+            tone="success"
+            title="Option set restored"
+          >
+            <p>
+              The option set was restored as a draft.
+            </p>
+          </Banner>
+        ) : null}
+
         {wasCreated ? (
           <Banner
             tone="success"
