@@ -419,6 +419,7 @@ async update(
               { createdAt: "asc" },
             ],
             select: {
+              id: true,
               type: true,
               label: true,
               placeholder: true,
@@ -427,6 +428,21 @@ async update(
               priceAdjustmentType: true,
               priceAdjustmentValue: true,
               position: true,
+              conditions: {
+                where: {
+                  deletedAt: null,
+                },
+                orderBy: [
+                  { position: "asc" },
+                  { createdAt: "asc" },
+                ],
+                select: {
+                  sourceFieldId: true,
+                  operator: true,
+                  expectedValue: true,
+                  position: true,
+                },
+              },
               values: {
                 where: {
                   deletedAt: null,
@@ -452,7 +468,7 @@ async update(
         return null;
       }
 
-      return tx.optionSet.create({
+      const duplicated = await tx.optionSet.create({
         data: {
           shopId: input.shopId,
           name: input.name,
@@ -469,33 +485,75 @@ async update(
           revision: 1,
           publishedRevision: null,
           publishedAt: null,
-          fields: {
-            create: source.fields.map((field) => ({
-              type: field.type,
-              label: field.label,
-              placeholder: field.placeholder,
-              helpText: field.helpText,
-              isRequired: field.isRequired,
-              priceAdjustmentType:
-                field.priceAdjustmentType,
-              priceAdjustmentValue:
-                field.priceAdjustmentValue,
-              position: field.position,
-              values: {
-                create: field.values.map((value) => ({
-                  label: value.label,
-                  value: value.value,
-                  priceAdjustmentType:
-                    value.priceAdjustmentType,
-                  priceAdjustmentValue:
-                    value.priceAdjustmentValue,
-                  position: value.position,
-                })),
-              },
-            })),
-          },
         },
       });
+
+      const fieldIdMap = new Map<string, string>();
+
+      for (const field of source.fields) {
+        const createdField = await tx.optionField.create({
+          data: {
+            optionSetId: duplicated.id,
+            type: field.type,
+            label: field.label,
+            placeholder: field.placeholder,
+            helpText: field.helpText,
+            isRequired: field.isRequired,
+            priceAdjustmentType:
+              field.priceAdjustmentType,
+            priceAdjustmentValue:
+              field.priceAdjustmentValue,
+            position: field.position,
+            values: {
+              create: field.values.map((value) => ({
+                label: value.label,
+                value: value.value,
+                priceAdjustmentType:
+                  value.priceAdjustmentType,
+                priceAdjustmentValue:
+                  value.priceAdjustmentValue,
+                position: value.position,
+              })),
+            },
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        fieldIdMap.set(field.id, createdField.id);
+      }
+
+      for (const field of source.fields) {
+        const targetFieldId = fieldIdMap.get(field.id);
+
+        if (!targetFieldId) {
+          continue;
+        }
+
+        for (const condition of field.conditions) {
+          const sourceFieldId = fieldIdMap.get(
+            condition.sourceFieldId,
+          );
+
+          if (!sourceFieldId) {
+            continue;
+          }
+
+          await tx.optionCondition.create({
+            data: {
+              targetFieldId,
+              sourceFieldId,
+              operator: condition.operator,
+              expectedValue:
+                condition.expectedValue,
+              position: condition.position,
+            },
+          });
+        }
+      }
+
+      return duplicated;
     });
   },
 
