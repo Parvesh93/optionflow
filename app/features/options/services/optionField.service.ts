@@ -371,6 +371,38 @@ export const optionFieldService = {
       );
     }
 
+    const conditionSourceByTarget = new Map(
+      builder.fields
+        .filter((field) => field.conditions[0])
+        .map((field) => [
+          field.id,
+          field.conditions[0]!.sourceFieldId,
+        ]),
+    );
+
+    conditionSourceByTarget.set(
+      targetField.id,
+      sourceField.id,
+    );
+
+    const visited = new Set<string>();
+    let cursor: string | undefined = sourceField.id;
+
+    while (cursor) {
+      if (cursor === targetField.id) {
+        throw new OptionFieldValidationError(
+          "This condition would create a circular dependency.",
+        );
+      }
+
+      if (visited.has(cursor)) {
+        break;
+      }
+
+      visited.add(cursor);
+      cursor = conditionSourceByTarget.get(cursor);
+    }
+
     if (
       sourceField.type !== "SELECT" &&
       sourceField.type !== "RADIO" &&
