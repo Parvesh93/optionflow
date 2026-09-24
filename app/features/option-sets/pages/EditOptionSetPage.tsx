@@ -127,12 +127,15 @@ export default function EditOptionSetPage() {
       subtitle="Update the basic details and status of this option set."
       backAction={{
         content: "Option sets",
-        url: "/app/option-sets",
+        onAction: () => navigate("/app/option-sets"),
       }}
       secondaryActions={[
         {
           content: "Build options",
-          url: `/app/option-sets/${optionSet.id}/builder`,
+          onAction: () =>
+            navigate(
+              `/app/option-sets/${optionSet.id}/builder`,
+            ),
         },
       ]}
     >
