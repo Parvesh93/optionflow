@@ -12,18 +12,42 @@ function mapPrice(
 
 export async function getStorefrontOptionSet(
   shopifyDomain: string,
-  handle: string,
+  productGid: string,
+  fallbackHandle = "",
 ) {
-  const normalizedDomain = shopifyDomain.trim().toLowerCase();
-  const normalizedHandle = handle.trim();
+  const normalizedDomain =
+    shopifyDomain.trim().toLowerCase();
+  const normalizedProductGid = productGid.trim();
+  const normalizedHandle = fallbackHandle.trim();
 
-  if (!normalizedHandle) {
-    return null;
-  }
+  const assignment = normalizedProductGid
+    ? await prisma.productAssignment.findFirst({
+        where: {
+          productGid: normalizedProductGid,
+          shop: {
+            shopifyDomain: normalizedDomain,
+            status: "ACTIVE",
+            deletedAt: null,
+          },
+          optionSet: {
+            status: "PUBLISHED",
+            deletedAt: null,
+          },
+        },
+        select: {
+          optionSetId: true,
+        },
+      })
+    : null;
 
   const optionSet = await prisma.optionSet.findFirst({
     where: {
-      handle: normalizedHandle,
+      id: assignment?.optionSetId,
+      ...(assignment
+        ? {}
+        : normalizedHandle
+          ? { handle: normalizedHandle }
+          : { id: "__missing__" }),
       status: "PUBLISHED",
       deletedAt: null,
       shop: {
