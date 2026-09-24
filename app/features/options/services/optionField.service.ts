@@ -226,6 +226,16 @@ function mapField(
       priceAdjustmentValue:
         value.priceAdjustmentValue?.toString() ?? "",
     })),
+    condition: field.conditions[0]
+      ? {
+          id: field.conditions[0].id,
+          sourceFieldId:
+            field.conditions[0].sourceFieldId,
+          operator: field.conditions[0].operator,
+          expectedValue:
+            field.conditions[0].expectedValue ?? "",
+        }
+      : null,
   };
 }
 
@@ -323,6 +333,128 @@ export const optionFieldService = {
     }
 
     return result;
+  },
+
+  async saveCondition(
+    shopId: string,
+    optionSetId: string,
+    targetFieldId: string,
+    input: {
+      sourceFieldId: string;
+      operator: string;
+      expectedValue: string;
+    },
+  ) {
+    const builder = await optionFieldRepository.getBuilder(
+      shopId,
+      optionSetId,
+    );
+
+    if (!builder) {
+      throw new OptionBuilderNotFoundError();
+    }
+
+    const targetField = builder.fields.find(
+      (field) => field.id === targetFieldId,
+    );
+    const sourceField = builder.fields.find(
+      (field) => field.id === input.sourceFieldId,
+    );
+
+    if (!targetField || !sourceField) {
+      throw new OptionBuilderNotFoundError();
+    }
+
+    if (targetField.id === sourceField.id) {
+      throw new OptionFieldValidationError(
+        "A field cannot depend on itself.",
+      );
+    }
+
+    if (
+      sourceField.type !== "SELECT" &&
+      sourceField.type !== "RADIO" &&
+      sourceField.type !== "CHECKBOX"
+    ) {
+      throw new OptionFieldValidationError(
+        "Conditions currently support dropdown, radio and checkbox source fields.",
+      );
+    }
+
+    let operator:
+      | "EQUALS"
+      | "NOT_EQUALS"
+      | "IS_CHECKED"
+      | "IS_NOT_CHECKED";
+    let expectedValue: string | null = null;
+
+    if (sourceField.type === "CHECKBOX") {
+      if (
+        input.operator !== "IS_CHECKED" &&
+        input.operator !== "IS_NOT_CHECKED"
+      ) {
+        throw new OptionFieldValidationError(
+          "Choose a valid checkbox condition.",
+        );
+      }
+
+      operator = input.operator;
+    } else {
+      if (
+        input.operator !== "EQUALS" &&
+        input.operator !== "NOT_EQUALS"
+      ) {
+        throw new OptionFieldValidationError(
+          "Choose a valid choice condition.",
+        );
+      }
+
+      operator = input.operator;
+      expectedValue = input.expectedValue.trim();
+
+      if (!expectedValue) {
+        throw new OptionFieldValidationError(
+          "Choose a value for the condition.",
+        );
+      }
+
+      const valueExists = sourceField.values.some(
+        (value) => value.value === expectedValue,
+      );
+
+      if (!valueExists) {
+        throw new OptionFieldValidationError(
+          "The selected condition value is no longer available.",
+        );
+      }
+    }
+
+    const saved = await optionFieldRepository.saveCondition(
+      shopId,
+      optionSetId,
+      targetFieldId,
+      {
+        sourceFieldId: sourceField.id,
+        operator,
+        expectedValue,
+      },
+    );
+
+    if (!saved) {
+      throw new OptionBuilderNotFoundError();
+    }
+  },
+
+  async removeCondition(
+    shopId: string,
+    optionSetId: string,
+    targetFieldId: string,
+  ) {
+    await optionFieldRepository.removeCondition(
+      shopId,
+      optionSetId,
+      targetFieldId,
+    );
   },
 
   async deleteField(
