@@ -400,6 +400,7 @@ async update(
 
     const duplicated = await optionSetRepository.duplicate({
       shopId,
+      sourceOptionSetId: optionSetId,
       name,
       handle,
       description: source.description,
@@ -408,6 +409,10 @@ async update(
       tags: source.tags,
       priority: source.priority,
     });
+
+    if (!duplicated) {
+      throw new OptionSetNotFoundError();
+    }
 
     return {
       id: duplicated.id,
