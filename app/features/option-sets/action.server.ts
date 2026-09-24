@@ -379,3 +379,49 @@ export async function restoreOptionSetAction({
     "restore",
   );
 }
+
+
+export async function deleteOptionSetAction({
+  request,
+  params,
+}: ActionFunctionArgs) {
+  const { session } = await authenticate.admin(request);
+  const optionSetId = params.optionSetId;
+
+  if (!optionSetId) {
+    return data(
+      { success: false, formError: "The option set ID is missing." },
+      { status: 400 },
+    );
+  }
+
+  const shop = await ensureShop({
+    shopifyDomain: session.shop,
+  });
+
+  try {
+    await optionSetService.softDelete(shop.id, optionSetId);
+
+    return redirect(
+      `/app/option-sets?deleted=${encodeURIComponent(optionSetId)}`,
+    );
+  } catch (error) {
+    if (error instanceof OptionSetNotFoundError) {
+      return data(
+        { success: false, formError: "Option set not found." },
+        { status: 404 },
+      );
+    }
+
+    console.error("Failed to delete option set", error);
+
+    return data(
+      {
+        success: false,
+        formError:
+          "The option set could not be deleted. Please try again.",
+      },
+      { status: 500 },
+    );
+  }
+}
