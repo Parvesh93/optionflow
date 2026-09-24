@@ -305,3 +305,77 @@ export async function duplicateOptionSetAction({
     );
   }
 }
+
+
+async function changeOptionSetArchiveState(
+  request: Request,
+  optionSetId: string | undefined,
+  mode: "archive" | "restore",
+) {
+  const { session } = await authenticate.admin(request);
+
+  if (!optionSetId) {
+    return data(
+      { success: false, formError: "The option set ID is missing." },
+      { status: 400 },
+    );
+  }
+
+  const shop = await ensureShop({
+    shopifyDomain: session.shop,
+  });
+
+  try {
+    if (mode === "archive") {
+      await optionSetService.archive(shop.id, optionSetId);
+    } else {
+      await optionSetService.restore(shop.id, optionSetId);
+    }
+
+    const parameter = mode === "archive" ? "archived" : "restored";
+
+    return redirect(
+      `/app/option-sets?${parameter}=${encodeURIComponent(optionSetId)}`,
+    );
+  } catch (error) {
+    if (error instanceof OptionSetNotFoundError) {
+      return data(
+        { success: false, formError: "Option set not found." },
+        { status: 404 },
+      );
+    }
+
+    console.error(`Failed to ${mode} option set`, error);
+
+    return data(
+      {
+        success: false,
+        formError:
+          `The option set could not be ${mode === "archive" ? "archived" : "restored"}. Please try again.`,
+      },
+      { status: 500 },
+    );
+  }
+}
+
+export async function archiveOptionSetAction({
+  request,
+  params,
+}: ActionFunctionArgs) {
+  return changeOptionSetArchiveState(
+    request,
+    params.optionSetId,
+    "archive",
+  );
+}
+
+export async function restoreOptionSetAction({
+  request,
+  params,
+}: ActionFunctionArgs) {
+  return changeOptionSetArchiveState(
+    request,
+    params.optionSetId,
+    "restore",
+  );
+}
