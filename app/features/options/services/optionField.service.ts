@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import type { OptionFieldType } from "@prisma/client";
 
 import { optionFieldRepository } from "../repositories/optionField.repository";
@@ -50,6 +51,53 @@ function slugifyValue(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+function parseAdjustmentType(value: string) {
+  if (
+    value === "NONE" ||
+    value === "FIXED" ||
+    value === "PERCENTAGE"
+  ) {
+    return value;
+  }
+
+  throw new OptionFieldValidationError(
+    "Choose a valid price adjustment type.",
+  );
+}
+
+function parseAdjustmentValue(
+  type: "NONE" | "FIXED" | "PERCENTAGE",
+  rawValue: string,
+) {
+  if (type === "NONE") {
+    return null;
+  }
+
+  const normalized = rawValue.trim();
+
+  if (!normalized) {
+    throw new OptionFieldValidationError(
+      "Enter a price adjustment value.",
+    );
+  }
+
+  const numeric = Number(normalized);
+
+  if (!Number.isFinite(numeric)) {
+    throw new OptionFieldValidationError(
+      "Price adjustment must be a valid number.",
+    );
+  }
+
+  if (type === "PERCENTAGE" && Math.abs(numeric) > 100) {
+    throw new OptionFieldValidationError(
+      "Percentage adjustment must be between -100 and 100.",
+    );
+  }
+
+  return new Prisma.Decimal(normalized);
+}
+
 function parseValues(type: OptionFieldType, raw: string) {
   if (type !== "SELECT" && type !== "RADIO") {
     return [];
@@ -59,11 +107,28 @@ function parseValues(type: OptionFieldType, raw: string) {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
-    .map((label, index) => ({
-      label,
-      value: slugifyValue(label) || `value-${index + 1}`,
-      position: index,
-    }));
+    .map((line, index) => {
+      const [rawLabel, rawType = "NONE", rawValue = ""] =
+        line.split("|").map((part) => part.trim());
+
+      const label = rawLabel;
+      const priceAdjustmentType =
+        parseAdjustmentType(rawType || "NONE");
+      const priceAdjustmentValue =
+        parseAdjustmentValue(
+          priceAdjustmentType,
+          rawValue,
+        );
+
+      return {
+        label,
+        value:
+          slugifyValue(label) || `value-${index + 1}`,
+        position: index,
+        priceAdjustmentType,
+        priceAdjustmentValue,
+      };
+    });
 }
 
 type RepositoryBuilder = NonNullable<
@@ -80,8 +145,15 @@ function mapField(
     placeholder: field.placeholder ?? "",
     helpText: field.helpText ?? "",
     isRequired: field.isRequired,
+    priceAdjustmentType: field.priceAdjustmentType,
+    priceAdjustmentValue:
+      field.priceAdjustmentValue?.toString() ?? "",
     position: field.position,
-    values: field.values,
+    values: field.values.map((value) => ({
+      ...value,
+      priceAdjustmentValue:
+        value.priceAdjustmentValue?.toString() ?? "",
+    })),
   };
 }
 
@@ -119,6 +191,8 @@ export const optionFieldService = {
       placeholder: string;
       helpText: string;
       isRequired: boolean;
+      priceAdjustmentType: string;
+      priceAdjustmentValue: string;
       valuesText: string;
     },
   ) {
@@ -139,6 +213,19 @@ export const optionFieldService = {
     const type = parseType(input.type);
     const values = parseValues(type, input.valuesText);
 
+    const fieldPriceAdjustmentType =
+      type === "SELECT" || type === "RADIO"
+        ? "NONE"
+        : parseAdjustmentType(
+            input.priceAdjustmentType || "NONE",
+          );
+
+    const fieldPriceAdjustmentValue =
+      parseAdjustmentValue(
+        fieldPriceAdjustmentType,
+        input.priceAdjustmentValue,
+      );
+
     const payload = {
       shopId,
       optionSetId,
@@ -147,6 +234,8 @@ export const optionFieldService = {
       placeholder: input.placeholder.trim() || null,
       helpText: input.helpText.trim() || null,
       isRequired: input.isRequired,
+      priceAdjustmentType: fieldPriceAdjustmentType,
+      priceAdjustmentValue: fieldPriceAdjustmentValue,
       values,
     };
 
