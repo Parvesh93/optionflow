@@ -4,6 +4,7 @@ import {
   type ActionFunctionArgs,
 } from "react-router";
 
+import { pricingInfrastructureService } from "~/features/pricing/services/pricingInfrastructure.service";
 import { ensureShop } from "~/services/shop.server";
 import { authenticate } from "~/shopify.server";
 import {
@@ -25,7 +26,8 @@ export async function productAssignmentsAction({
   request,
   params,
 }: ActionFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } =
+    await authenticate.admin(request);
   const optionSetId = params.optionSetId;
 
   if (!optionSetId) {
@@ -94,6 +96,12 @@ export async function productAssignmentsAction({
         },
       );
 
+      await pricingInfrastructureService.syncOptionSet(
+        admin,
+        shop.id,
+        optionSetId,
+      );
+
       return redirect(
         `/app/option-sets/${optionSetId}/assignments?assigned=1`,
       );
@@ -108,6 +116,11 @@ export async function productAssignmentsAction({
       await productAssignmentService.unassign(
         shop.id,
         optionSetId,
+        productGid,
+      );
+
+      await pricingInfrastructureService.disableProductPricing(
+        admin,
         productGid,
       );
 
