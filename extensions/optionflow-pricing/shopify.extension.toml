@@ -1,0 +1,16 @@
+api_version = "2026-01"
+
+[[extensions]]
+name = "OptionFlow Pricing"
+handle = "optionflow-pricing"
+type = "function"
+description = "Applies OptionFlow product option price adjustments."
+
+  [[extensions.targeting]]
+  target = "cart.transform.run"
+  input_query = "src/cart_transform_run.graphql"
+  export = "cartTransformRun"
+
+  [extensions.build]
+  command = ""
+  path = "dist/function.wasm"
