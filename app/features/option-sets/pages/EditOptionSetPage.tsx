@@ -5,6 +5,7 @@ import {
   BlockStack,
   Button,
   Card,
+  Modal,
   FormLayout,
   InlineStack,
   Select,
@@ -49,7 +50,9 @@ export default function EditOptionSetPage() {
   const navigation = useNavigation();
   const duplicateFetcher = useFetcher();
   const archiveFetcher = useFetcher();
+  const deleteFetcher = useFetcher();
   const [searchParams] = useSearchParams();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   const wasDuplicated =
     searchParams.get("duplicated") === "1";
@@ -62,6 +65,9 @@ export default function EditOptionSetPage() {
 
   const isChangingArchiveState =
     archiveFetcher.state !== "idle";
+
+  const isDeleting =
+    deleteFetcher.state !== "idle";
 
   const [name, setName] = useState(
     actionData?.values.name ??
@@ -297,6 +303,19 @@ export default function EditOptionSetPage() {
                     ? "Restore"
                     : "Archive"}
                 </Button>
+
+                <Button
+                  tone="critical"
+                  onClick={() => setDeleteModalOpen(true)}
+                  disabled={
+                    isSubmitting ||
+                    isDuplicating ||
+                    isChangingArchiveState ||
+                    isDeleting
+                  }
+                >
+                  Delete
+                </Button>
               </InlineStack>
 
               <InlineStack gap="300">
@@ -318,6 +337,38 @@ export default function EditOptionSetPage() {
             </InlineStack>
           </BlockStack>
         </Form>
+        <Modal
+          open={deleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+          title="Delete option set?"
+          primaryAction={{
+            content: "Delete option set",
+            destructive: true,
+            loading: isDeleting,
+            onAction: () => {
+              deleteFetcher.submit(
+                {},
+                {
+                  method: "post",
+                  action: `/app/option-sets/${optionSet.id}/delete`,
+                },
+              );
+            },
+          }}
+          secondaryActions={[
+            {
+              content: "Cancel",
+              onAction: () => setDeleteModalOpen(false),
+              disabled: isDeleting,
+            },
+          ]}
+        >
+          <Modal.Section>
+            <Text as="p">
+              This option set will be removed from your active records. This action cannot be undone from the app.
+            </Text>
+          </Modal.Section>
+        </Modal>
       </BlockStack>
     </OFPage>
   );
