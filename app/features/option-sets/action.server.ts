@@ -425,3 +425,63 @@ export async function deleteOptionSetAction({
     );
   }
 }
+
+
+export async function bulkOptionSetAction({
+  request,
+}: ActionFunctionArgs) {
+  const { session } = await authenticate.admin(request);
+  const shop = await ensureShop({
+    shopifyDomain: session.shop,
+  });
+
+  const formData = await request.formData();
+  const action = getString(formData, "bulkAction");
+  const optionSetIds = formData
+    .getAll("optionSetIds")
+    .filter((value): value is string => typeof value === "string");
+
+  if (
+    action !== "archive" &&
+    action !== "restore" &&
+    action !== "delete"
+  ) {
+    return data(
+      { success: false, formError: "Invalid bulk action." },
+      { status: 400 },
+    );
+  }
+
+  if (optionSetIds.length === 0) {
+    return data(
+      { success: false, formError: "Select at least one option set." },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const result = await optionSetService.bulkAction(
+      shop.id,
+      optionSetIds,
+      action,
+    );
+
+    const params = new URLSearchParams({
+      bulk: action,
+      count: String(result.count),
+    });
+
+    return redirect(`/app/option-sets?${params.toString()}`);
+  } catch (error) {
+    console.error("Failed to apply bulk option set action", error);
+
+    return data(
+      {
+        success: false,
+        formError:
+          "The selected option sets could not be updated. Please try again.",
+      },
+      { status: 500 },
+    );
+  }
+}
