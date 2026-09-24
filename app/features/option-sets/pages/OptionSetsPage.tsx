@@ -206,6 +206,10 @@ export default function OptionSetsPage() {
     searchParams.get("restored"),
   );
 
+  const wasDeleted = Boolean(
+    searchParams.get("deleted"),
+  );
+
   const hasFilters =
     Boolean(filters.search) ||
     Boolean(filters.status) ||
@@ -332,6 +336,17 @@ export default function OptionSetsPage() {
           >
             <p>
               The option set was restored as a draft.
+            </p>
+          </Banner>
+        ) : null}
+
+        {wasDeleted ? (
+          <Banner
+            tone="success"
+            title="Option set deleted"
+          >
+            <p>
+              The option set was removed successfully.
             </p>
           </Banner>
         ) : null}
