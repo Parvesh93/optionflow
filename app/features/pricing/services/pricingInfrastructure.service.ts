@@ -563,6 +563,51 @@ export const pricingInfrastructureService = {
     }
   },
 
+  async disableOptionSetProducts(
+    admin: AdminGraphqlClient,
+    shopId: string,
+    optionSetId: string,
+  ) {
+    const assignments =
+      await prisma.productAssignment.findMany({
+        where: {
+          shopId,
+          optionSetId,
+        },
+        select: {
+          productGid: true,
+        },
+      });
+
+    const value = JSON.stringify({
+      version: 1,
+      enabled: false,
+      fields: [],
+    });
+
+    for (
+      let index = 0;
+      index < assignments.length;
+      index += 20
+    ) {
+      const batch = assignments.slice(
+        index,
+        index + 20,
+      );
+
+      await setMetafields(
+        admin,
+        batch.map(({ productGid }) => ({
+          ownerId: productGid,
+          namespace: APP_NAMESPACE,
+          key: PRICING_KEY,
+          type: "json",
+          value,
+        })),
+      );
+    }
+  },
+
   async disableProductPricing(
     admin: AdminGraphqlClient,
     productGid: string,
