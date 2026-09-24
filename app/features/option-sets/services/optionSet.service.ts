@@ -273,6 +273,32 @@ async update(
   };
 },
 
+  async bulkAction(
+    shopId: string,
+    optionSetIds: string[],
+    action: "archive" | "restore" | "delete",
+  ) {
+    const ids = [...new Set(optionSetIds.filter(Boolean))];
+
+    if (ids.length === 0) {
+      return { count: 0 };
+    }
+
+    if (ids.length > 100) {
+      throw new Error("A maximum of 100 option sets can be updated at once.");
+    }
+
+    if (action === "archive") {
+      return optionSetRepository.bulkArchive(shopId, ids);
+    }
+
+    if (action === "restore") {
+      return optionSetRepository.bulkRestore(shopId, ids);
+    }
+
+    return optionSetRepository.bulkSoftDelete(shopId, ids);
+  },
+
   async softDelete(
     shopId: string,
     optionSetId: string,
