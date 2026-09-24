@@ -45,6 +45,7 @@ type UpdateOptionSetRepositoryInput = {
 
 type DuplicateOptionSetRepositoryInput = {
   shopId: string;
+  sourceOptionSetId: string;
   name: string;
   handle: string;
   description: string | null;
@@ -400,23 +401,89 @@ async update(
 
   async duplicate(
     input: DuplicateOptionSetRepositoryInput,
-    client: OptionSetRepositoryClient = prisma,
   ) {
-    return client.optionSet.create({
-      data: {
-        shopId: input.shopId,
-        name: input.name,
-        handle: input.handle,
-        description: input.description,
-        internalNote: input.internalNote,
-        displayTitle: input.displayTitle,
-        tags: input.tags === null ? undefined : input.tags,
-        priority: input.priority,
-        status: "DRAFT",
-        revision: 1,
-        publishedRevision: null,
-        publishedAt: null,
-      },
+    return prisma.$transaction(async (tx) => {
+      const source = await tx.optionSet.findFirst({
+        where: {
+          id: input.sourceOptionSetId,
+          shopId: input.shopId,
+          deletedAt: null,
+        },
+        select: {
+          fields: {
+            where: {
+              deletedAt: null,
+            },
+            orderBy: [
+              { position: "asc" },
+              { createdAt: "asc" },
+            ],
+            select: {
+              type: true,
+              label: true,
+              placeholder: true,
+              helpText: true,
+              isRequired: true,
+              position: true,
+              values: {
+                where: {
+                  deletedAt: null,
+                },
+                orderBy: [
+                  { position: "asc" },
+                  { createdAt: "asc" },
+                ],
+                select: {
+                  label: true,
+                  value: true,
+                  position: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!source) {
+        return null;
+      }
+
+      return tx.optionSet.create({
+        data: {
+          shopId: input.shopId,
+          name: input.name,
+          handle: input.handle,
+          description: input.description,
+          internalNote: input.internalNote,
+          displayTitle: input.displayTitle,
+          tags:
+            input.tags === null
+              ? undefined
+              : input.tags,
+          priority: input.priority,
+          status: "DRAFT",
+          revision: 1,
+          publishedRevision: null,
+          publishedAt: null,
+          fields: {
+            create: source.fields.map((field) => ({
+              type: field.type,
+              label: field.label,
+              placeholder: field.placeholder,
+              helpText: field.helpText,
+              isRequired: field.isRequired,
+              position: field.position,
+              values: {
+                create: field.values.map((value) => ({
+                  label: value.label,
+                  value: value.value,
+                  position: value.position,
+                })),
+              },
+            })),
+          },
+        },
+      });
     });
   },
 
