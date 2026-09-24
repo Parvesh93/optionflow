@@ -66,6 +66,13 @@ enum PriceAdjustmentType {
   PERCENTAGE
 }
 
+enum ConditionOperator {
+  EQUALS
+  NOT_EQUALS
+  IS_CHECKED
+  IS_NOT_CHECKED
+}
+
 model Shop {
   id             String     @id @default(cuid())
   shopifyDomain  String     @unique
@@ -129,8 +136,10 @@ model OptionField {
   updatedAt   DateTime        @updatedAt
   deletedAt   DateTime?
 
-  optionSet OptionSet     @relation(fields: [optionSetId], references: [id], onDelete: Restrict)
-  values    OptionValue[]
+  optionSet           OptionSet         @relation(fields: [optionSetId], references: [id], onDelete: Restrict)
+  values              OptionValue[]
+  conditions          OptionCondition[] @relation("TargetFieldConditions")
+  dependentConditions OptionCondition[] @relation("SourceFieldConditions")
 
   @@index([optionSetId, position, deletedAt])
 }
@@ -150,4 +159,23 @@ model OptionValue {
   optionField OptionField @relation(fields: [optionFieldId], references: [id], onDelete: Restrict)
 
   @@index([optionFieldId, position, deletedAt])
+}
+
+
+model OptionCondition {
+  id             String            @id @default(cuid())
+  targetFieldId  String
+  sourceFieldId  String
+  operator       ConditionOperator
+  expectedValue  String?
+  position       Int               @default(0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  deletedAt      DateTime?
+
+  targetField OptionField @relation("TargetFieldConditions", fields: [targetFieldId], references: [id], onDelete: Restrict)
+  sourceField OptionField @relation("SourceFieldConditions", fields: [sourceFieldId], references: [id], onDelete: Restrict)
+
+  @@index([targetFieldId, position, deletedAt])
+  @@index([sourceFieldId, deletedAt])
 }
