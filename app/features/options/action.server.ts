@@ -4,6 +4,7 @@ import {
   type ActionFunctionArgs,
 } from "react-router";
 
+import { pricingInfrastructureService } from "~/features/pricing/services/pricingInfrastructure.service";
 import { ensureShop } from "~/services/shop.server";
 import { authenticate } from "~/shopify.server";
 
@@ -22,7 +23,8 @@ export async function optionBuilderAction({
   request,
   params,
 }: ActionFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } =
+    await authenticate.admin(request);
   const optionSetId = params.optionSetId;
 
   if (!optionSetId) {
@@ -72,6 +74,12 @@ export async function optionBuilderAction({
         },
       );
 
+      await pricingInfrastructureService.syncOptionSet(
+        admin,
+        shop.id,
+        optionSetId,
+      );
+
       return redirect(
         `/app/option-sets/${optionSetId}/builder?saved=1`,
       );
@@ -100,6 +108,12 @@ export async function optionBuilderAction({
         },
       );
 
+      await pricingInfrastructureService.syncOptionSet(
+        admin,
+        shop.id,
+        optionSetId,
+      );
+
       return redirect(
         `/app/option-sets/${optionSetId}/builder?conditionSaved=1`,
       );
@@ -117,6 +131,12 @@ export async function optionBuilderAction({
         targetFieldId,
       );
 
+      await pricingInfrastructureService.syncOptionSet(
+        admin,
+        shop.id,
+        optionSetId,
+      );
+
       return redirect(
         `/app/option-sets/${optionSetId}/builder?conditionRemoved=1`,
       );
@@ -129,6 +149,12 @@ export async function optionBuilderAction({
         shop.id,
         optionSetId,
         fieldId,
+      );
+
+      await pricingInfrastructureService.syncOptionSet(
+        admin,
+        shop.id,
+        optionSetId,
       );
 
       return redirect(
@@ -148,6 +174,12 @@ export async function optionBuilderAction({
         shop.id,
         optionSetId,
         orderedFieldIds,
+      );
+
+      await pricingInfrastructureService.syncOptionSet(
+        admin,
+        shop.id,
+        optionSetId,
       );
 
       return data({
@@ -181,6 +213,12 @@ export async function optionBuilderAction({
         optionSetId,
         fieldId,
         direction,
+      );
+
+      await pricingInfrastructureService.syncOptionSet(
+        admin,
+        shop.id,
+        optionSetId,
       );
 
       return redirect(
