@@ -20,6 +20,7 @@ import {
   useActionData,
   useFetcher,
   useLoaderData,
+  useNavigate,
   useNavigation,
   useSearchParams,
 } from "react-router";
@@ -456,6 +457,7 @@ export default function OptionBuilderPage() {
   const actionData =
     useActionData<typeof optionBuilderAction>();
   const navigation = useNavigation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const saved = searchParams.get("saved") === "1";
@@ -468,12 +470,18 @@ export default function OptionBuilderPage() {
       subtitle={`Configure customer-facing options for ${optionSet.name}.`}
       backAction={{
         content: optionSet.name,
-        url: `/app/option-sets/${optionSet.id}/edit`,
+        onAction: () =>
+          navigate(
+            `/app/option-sets/${optionSet.id}/edit`,
+          ),
       }}
       secondaryActions={[
         {
           content: "Edit option set",
-          url: `/app/option-sets/${optionSet.id}/edit`,
+          onAction: () =>
+            navigate(
+              `/app/option-sets/${optionSet.id}/edit`,
+            ),
         },
       ]}
     >
