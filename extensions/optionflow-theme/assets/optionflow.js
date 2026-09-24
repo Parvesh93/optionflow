@@ -1,118 +1,140 @@
 (() => {
-  const ROOT_SELECTOR = "[data-optionflow-root]";
+  const ROOT = "[data-optionflow-root]";
+  const qs = (el, selector) => el.querySelector(selector);
 
-  function escapePropertyLabel(label) {
-    return String(label)
-      .replace(/[\\[\\]]/g, "")
-      .trim()
-      .slice(0, 120);
-  }
-
-  function findProductForm(root) {
+  function productForm(root) {
     const section = root.closest(".shopify-section");
-
-    if (section) {
-      const localForm = section.querySelector(
-        'form[action*="/cart/add"]',
-      );
-      if (localForm) return localForm;
-    }
-
-    return document.querySelector(
-      'form[action*="/cart/add"]',
+    return (
+      (section && qs(section, 'form[action*="/cart/add"]')) ||
+      qs(document, 'form[action*="/cart/add"]')
     );
   }
 
-  function createHiddenProperty(form, fieldId, label) {
+  function propertyInput(form, field) {
     const input = document.createElement("input");
     input.type = "hidden";
-    input.dataset.optionflowProperty = fieldId;
-    input.name = `properties[${escapePropertyLabel(label)}]`;
-    input.value = "";
+    input.name =
+      "properties[" +
+      String(field.label)
+        .replace(/[\\[\\]]/g, "")
+        .trim()
+        .slice(0, 120) +
+      "]";
+    input.dataset.optionflowProperty = field.id;
     form.appendChild(input);
     return input;
   }
 
-  function formatAdjustment(adjustment) {
+  function priceLabel(label, adjustment) {
     if (
       !adjustment ||
       adjustment.type === "NONE" ||
       !adjustment.value
     ) {
-      return "";
+      return label;
     }
 
-    const numeric = Number(adjustment.value);
-    const sign = numeric >= 0 ? "+" : "";
+    const value = String(adjustment.value);
+    const sign = Number(value) >= 0 ? "+" : "";
+    const suffix =
+      adjustment.type === "PERCENTAGE" ? "%" : "";
 
-    if (adjustment.type === "PERCENTAGE") {
-      return `${sign}${adjustment.value}%`;
-    }
-
-    return `${sign}${adjustment.value}`;
+    return `${label} (${sign}${value}${suffix})`;
   }
 
-  function optionLabel(label, adjustment) {
-    const price = formatAdjustment(adjustment);
-    return price ? `${label} (${price})` : label;
-  }
+  function valueOf(entry) {
+    const { field, control } = entry;
 
-  function currentValue(control, field) {
     if (field.type === "CHECKBOX") {
       return control.checked ? "true" : "false";
     }
 
     if (field.type === "RADIO") {
-      const checked = control.querySelector(
+      return (
+        qs(control, 'input[type="radio"]:checked')?.value || ""
+      );
+    }
+
+    return control.value || "";
+  }
+
+  function displayValue(entry) {
+    const { field, control } = entry;
+
+    if (field.type === "CHECKBOX") {
+      return control.checked ? "Yes" : "";
+    }
+
+    if (field.type === "RADIO") {
+      const checked = qs(
+        control,
         'input[type="radio"]:checked',
       );
-      return checked ? checked.value : "";
+      return (
+        checked?.dataset.optionflowLabel ||
+        checked?.value ||
+        ""
+      );
     }
 
-    return control.value ?? "";
+    if (field.type === "SELECT") {
+      const selected =
+        control.options[control.selectedIndex];
+      return (
+        selected?.dataset.optionflowLabel ||
+        selected?.textContent ||
+        ""
+      );
+    }
+
+    return String(control.value || "");
   }
 
-  function matchesCondition(condition, sourceValue) {
+  function conditionMatches(condition, sourceValue) {
     if (!condition) return true;
 
-    switch (condition.operator) {
-      case "EQUALS":
-        return sourceValue === condition.expectedValue;
-      case "NOT_EQUALS":
-        return sourceValue !== condition.expectedValue;
-      case "IS_CHECKED":
-        return sourceValue === "true";
-      case "IS_NOT_CHECKED":
-        return sourceValue !== "true";
-      default:
-        return true;
+    if (condition.operator === "EQUALS") {
+      return sourceValue === condition.expectedValue;
     }
+
+    if (condition.operator === "NOT_EQUALS") {
+      return sourceValue !== condition.expectedValue;
+    }
+
+    if (condition.operator === "IS_CHECKED") {
+      return sourceValue === "true";
+    }
+
+    if (condition.operator === "IS_NOT_CHECKED") {
+      return sourceValue !== "true";
+    }
+
+    return true;
   }
 
-  function renderField(field) {
-    const wrapper = document.createElement("div");
-    wrapper.className = "optionflow-field";
-    wrapper.dataset.optionflowField = field.id;
+  function fieldElement(field) {
+    const wrap = document.createElement("div");
+    wrap.className = "optionflow-field";
+    wrap.dataset.optionflowField = field.id;
 
     let control;
 
     if (field.type === "CHECKBOX") {
-      const choice = document.createElement("label");
-      choice.className = "optionflow-choice";
+      const label = document.createElement("label");
+      label.className = "optionflow-choice";
 
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      input.dataset.optionflowControl = field.id;
+      control = document.createElement("input");
+      control.type = "checkbox";
+      control.dataset.optionflowControl = field.id;
 
       const text = document.createElement("span");
-      text.textContent = optionLabel(
+      text.textContent = priceLabel(
         field.label,
         field.priceAdjustment,
       );
 
-      choice.append(input, text);
-      wrapper.appendChild(choice);
-      control = input;
+      label.append(control, text);
+      wrap.appendChild(label);
     } else {
       const label = document.createElement("label");
       label.className = "optionflow-field__label";
@@ -125,16 +147,14 @@
         label.appendChild(star);
       }
 
-      wrapper.appendChild(label);
+      wrap.appendChild(label);
 
       if (field.type === "TEXTAREA") {
         control = document.createElement("textarea");
         control.placeholder = field.placeholder || "";
-        control.dataset.optionflowControl = field.id;
-        wrapper.appendChild(control);
+        wrap.appendChild(control);
       } else if (field.type === "SELECT") {
         control = document.createElement("select");
-        control.dataset.optionflowControl = field.id;
 
         const blank = document.createElement("option");
         blank.value = "";
@@ -142,108 +162,76 @@
           field.placeholder || "Choose an option";
         control.appendChild(blank);
 
-        field.values.forEach((value) => {
+        field.values.forEach((item) => {
           const option = document.createElement("option");
-          option.value = value.value;
-          option.textContent = optionLabel(
-            value.label,
-            value.priceAdjustment,
+          option.value = item.value;
+          option.textContent = priceLabel(
+            item.label,
+            item.priceAdjustment,
           );
-          option.dataset.optionflowLabel = value.label;
+          option.dataset.optionflowLabel = item.label;
           control.appendChild(option);
         });
 
-        wrapper.appendChild(control);
+        wrap.appendChild(control);
       } else if (field.type === "RADIO") {
-        const group = document.createElement("div");
-        group.className = "optionflow-choices";
-        group.dataset.optionflowControl = field.id;
+        control = document.createElement("div");
+        control.className = "optionflow-choices";
 
-        field.values.forEach((value) => {
-          const choice = document.createElement("label");
-          choice.className = "optionflow-choice";
+        field.values.forEach((item) => {
+          const label = document.createElement("label");
+          label.className = "optionflow-choice";
 
           const input = document.createElement("input");
           input.type = "radio";
-          input.name = `optionflow_${field.id}`;
-          input.value = value.value;
-          input.dataset.optionflowLabel = value.label;
+          input.name = "optionflow_" + field.id;
+          input.value = item.value;
+          input.dataset.optionflowLabel = item.label;
 
           const text = document.createElement("span");
-          text.textContent = optionLabel(
-            value.label,
-            value.priceAdjustment,
+          text.textContent = priceLabel(
+            item.label,
+            item.priceAdjustment,
           );
 
-          choice.append(input, text);
-          group.appendChild(choice);
+          label.append(input, text);
+          control.appendChild(label);
         });
 
-        control = group;
-        wrapper.appendChild(group);
+        wrap.appendChild(control);
       } else {
         control = document.createElement("input");
         control.type =
           field.type === "NUMBER" ? "number" : "text";
         control.placeholder = field.placeholder || "";
-        control.dataset.optionflowControl = field.id;
-        wrapper.appendChild(control);
+        wrap.appendChild(control);
       }
+
+      control.dataset.optionflowControl = field.id;
     }
 
     if (field.helpText) {
       const help = document.createElement("div");
       help.className = "optionflow-field__help";
       help.textContent = field.helpText;
-      wrapper.appendChild(help);
+      wrap.appendChild(help);
     }
 
-    return { wrapper, control };
-  }
-
-  function selectedDisplayValue(field, control) {
-    if (field.type === "CHECKBOX") {
-      return control.checked ? "Yes" : "";
-    }
-
-    if (field.type === "RADIO") {
-      const checked = control.querySelector(
-        'input[type="radio"]:checked',
-      );
-      return checked
-        ? checked.dataset.optionflowLabel || checked.value
-        : "";
-    }
-
-    if (field.type === "SELECT") {
-      const selected =
-        control.options[control.selectedIndex];
-      return selected
-        ? selected.dataset.optionflowLabel ||
-            selected.textContent ||
-            ""
-        : "";
-    }
-
-    return String(control.value || "");
+    return { wrap, control };
   }
 
   async function initRoot(root) {
-    if (root.dataset.optionflowInitialized === "true") {
-      return;
-    }
-
-    root.dataset.optionflowInitialized = "true";
+    if (root.dataset.optionflowInitialized) return;
+    root.dataset.optionflowInitialized = "1";
 
     const handle = root.dataset.optionflowHandle || "";
+    const form = productForm(root);
 
     if (!handle) {
       root.innerHTML =
         '<div class="optionflow-product-options__message">Select an OptionFlow option set in the theme editor.</div>';
       return;
     }
-
-    const form = findProductForm(root);
 
     if (!form) {
       root.innerHTML =
@@ -253,14 +241,10 @@
 
     try {
       const response = await fetch(
-        `/apps/optionflow?handle=${encodeURIComponent(handle)}`,
-        {
-          headers: {
-            Accept: "application/json",
-          },
-        },
+        "/apps/optionflow?handle=" +
+          encodeURIComponent(handle),
+        { headers: { Accept: "application/json" } },
       );
-
       const payload = await response.json();
 
       if (!response.ok || !payload.ok) {
@@ -277,74 +261,55 @@
         optionSet.title
       ) {
         const title = document.createElement("div");
-        title.className = "optionflow-product-options__title";
+        title.className =
+          "optionflow-product-options__title";
         title.textContent = optionSet.title;
         root.appendChild(title);
       }
 
-      const fieldsContainer = document.createElement("div");
-      fieldsContainer.className = "optionflow-fields";
-      root.appendChild(fieldsContainer);
+      const container = document.createElement("div");
+      container.className = "optionflow-fields";
+      root.appendChild(container);
 
-      const fieldMap = new Map();
+      const entries = new Map();
 
       optionSet.fields.forEach((field) => {
-        const rendered = renderField(field);
-        const propertyInput = createHiddenProperty(
-          form,
-          field.id,
-          field.label,
-        );
+        const rendered = fieldElement(field);
+        const property = propertyInput(form, field);
 
-        fieldsContainer.appendChild(rendered.wrapper);
-
-        fieldMap.set(field.id, {
+        container.appendChild(rendered.wrap);
+        entries.set(field.id, {
           field,
-          wrapper: rendered.wrapper,
           control: rendered.control,
-          propertyInput,
+          wrap: rendered.wrap,
+          property,
         });
       });
 
       function sync() {
-        fieldMap.forEach((entry) => {
-          const { field, wrapper, control, propertyInput } =
-            entry;
-
+        entries.forEach((entry) => {
           let visible = true;
 
-          if (field.condition) {
-            const source = fieldMap.get(
-              field.condition.sourceFieldId,
+          if (entry.field.condition) {
+            const source = entries.get(
+              entry.field.condition.sourceFieldId,
             );
-
-            if (source) {
-              visible = matchesCondition(
-                field.condition,
-                currentValue(
-                  source.control,
-                  source.field,
-                ),
-              );
-            }
+            visible = source
+              ? conditionMatches(
+                  entry.field.condition,
+                  valueOf(source),
+                )
+              : true;
           }
 
-          wrapper.hidden = !visible;
-
-          if (!visible) {
-            propertyInput.value = "";
-            return;
-          }
-
-          propertyInput.value = selectedDisplayValue(
-            field,
-            control,
-          );
+          entry.wrap.hidden = !visible;
+          entry.property.value = visible
+            ? displayValue(entry)
+            : "";
         });
       }
 
-      fieldMap.forEach((entry) => {
-        const control = entry.control;
+      entries.forEach(({ control }) => {
         control.addEventListener("change", sync);
         control.addEventListener("input", sync);
       });
@@ -352,36 +317,34 @@
       form.addEventListener("submit", (event) => {
         sync();
 
-        for (const entry of fieldMap.values()) {
-          const { field, wrapper, propertyInput } = entry;
-
+        for (const entry of entries.values()) {
           if (
-            !wrapper.hidden &&
-            field.required &&
-            !propertyInput.value.trim()
+            !entry.wrap.hidden &&
+            entry.field.required &&
+            !entry.property.value.trim()
           ) {
             event.preventDefault();
             event.stopImmediatePropagation();
 
-            wrapper.scrollIntoView({
+            entry.wrap.scrollIntoView({
               behavior: "smooth",
               block: "center",
             });
 
-            const existing =
-              wrapper.querySelector(
+            if (
+              !qs(
+                entry.wrap,
                 ".optionflow-field__error",
-              );
-
-            if (!existing) {
+              )
+            ) {
               const error =
                 document.createElement("div");
               error.className =
                 "optionflow-field__error";
-              error.style.color = "rgb(180, 0, 0)";
               error.textContent =
                 "Please complete this required option.";
-              wrapper.appendChild(error);
+              error.style.color = "rgb(180, 0, 0)";
+              entry.wrap.appendChild(error);
             }
 
             return;
@@ -398,9 +361,7 @@
   }
 
   function init() {
-    document
-      .querySelectorAll(ROOT_SELECTOR)
-      .forEach(initRoot);
+    document.querySelectorAll(ROOT).forEach(initRoot);
   }
 
   if (document.readyState === "loading") {
@@ -409,8 +370,5 @@
     init();
   }
 
-  document.addEventListener(
-    "shopify:section:load",
-    init,
-  );
+  document.addEventListener("shopify:section:load", init);
 })();
