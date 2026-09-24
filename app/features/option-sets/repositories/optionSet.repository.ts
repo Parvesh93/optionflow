@@ -265,6 +265,66 @@ async update(
   });
 },
 
+  async bulkArchive(
+    shopId: string,
+    optionSetIds: string[],
+    client: OptionSetRepositoryClient = prisma,
+  ) {
+    return client.optionSet.updateMany({
+      where: {
+        id: { in: optionSetIds },
+        shopId,
+        deletedAt: null,
+        status: { not: "ARCHIVED" },
+      },
+      data: {
+        status: "ARCHIVED",
+        publishedAt: null,
+        publishedRevision: null,
+        revision: { increment: 1 },
+      },
+    });
+  },
+
+  async bulkRestore(
+    shopId: string,
+    optionSetIds: string[],
+    client: OptionSetRepositoryClient = prisma,
+  ) {
+    return client.optionSet.updateMany({
+      where: {
+        id: { in: optionSetIds },
+        shopId,
+        deletedAt: null,
+        status: "ARCHIVED",
+      },
+      data: {
+        status: "DRAFT",
+        revision: { increment: 1 },
+      },
+    });
+  },
+
+  async bulkSoftDelete(
+    shopId: string,
+    optionSetIds: string[],
+    client: OptionSetRepositoryClient = prisma,
+  ) {
+    return client.optionSet.updateMany({
+      where: {
+        id: { in: optionSetIds },
+        shopId,
+        deletedAt: null,
+      },
+      data: {
+        deletedAt: new Date(),
+        publishedAt: null,
+        publishedRevision: null,
+        revision: { increment: 1 },
+      },
+    });
+  },
+
   async softDelete(
     shopId: string,
     optionSetId: string,
