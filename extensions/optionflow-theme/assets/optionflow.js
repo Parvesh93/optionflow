@@ -360,7 +360,7 @@
     } catch (error) {
       root.innerHTML =
         '<div class="optionflow-product-options__message">Unable to load product options right now.</div>';
-      console.error("OptionFlow storefront error", error);
+      console.error("OptionFlow", error);
     }
   }
 
