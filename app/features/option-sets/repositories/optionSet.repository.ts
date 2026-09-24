@@ -265,6 +265,56 @@ async update(
   });
 },
 
+  async archive(
+    shopId: string,
+    optionSetId: string,
+    client: OptionSetRepositoryClient = prisma,
+  ) {
+    const result = await client.optionSet.updateMany({
+      where: {
+        id: optionSetId,
+        shopId,
+        deletedAt: null,
+        status: {
+          not: "ARCHIVED",
+        },
+      },
+      data: {
+        status: "ARCHIVED",
+        publishedAt: null,
+        publishedRevision: null,
+        revision: {
+          increment: 1,
+        },
+      },
+    });
+
+    return result.count > 0;
+  },
+
+  async restore(
+    shopId: string,
+    optionSetId: string,
+    client: OptionSetRepositoryClient = prisma,
+  ) {
+    const result = await client.optionSet.updateMany({
+      where: {
+        id: optionSetId,
+        shopId,
+        deletedAt: null,
+        status: "ARCHIVED",
+      },
+      data: {
+        status: "DRAFT",
+        revision: {
+          increment: 1,
+        },
+      },
+    });
+
+    return result.count > 0;
+  },
+
   async duplicate(
     input: DuplicateOptionSetRepositoryInput,
     client: OptionSetRepositoryClient = prisma,
