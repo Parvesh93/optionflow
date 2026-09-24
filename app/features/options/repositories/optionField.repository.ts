@@ -19,10 +19,14 @@ type SaveFieldInput = {
   placeholder: string | null;
   helpText: string | null;
   isRequired: boolean;
+  priceAdjustmentType: "NONE" | "FIXED" | "PERCENTAGE";
+  priceAdjustmentValue: Prisma.Decimal | null;
   values: Array<{
     label: string;
     value: string;
     position: number;
+    priceAdjustmentType: "NONE" | "FIXED" | "PERCENTAGE";
+    priceAdjustmentValue: Prisma.Decimal | null;
   }>;
 };
 
@@ -78,6 +82,8 @@ export const optionFieldRepository = {
             placeholder: true,
             helpText: true,
             isRequired: true,
+            priceAdjustmentType: true,
+            priceAdjustmentValue: true,
             position: true,
             values: {
               where: {
@@ -91,6 +97,8 @@ export const optionFieldRepository = {
                 id: true,
                 label: true,
                 value: true,
+                priceAdjustmentType: true,
+                priceAdjustmentValue: true,
                 position: true,
               },
             },
@@ -133,6 +141,8 @@ export const optionFieldRepository = {
           placeholder: input.placeholder,
           helpText: input.helpText,
           isRequired: input.isRequired,
+          priceAdjustmentType: input.priceAdjustmentType,
+          priceAdjustmentValue: input.priceAdjustmentValue,
           position: (last?.position ?? -1) + 1,
           values: {
             create: input.values,
@@ -173,6 +183,8 @@ export const optionFieldRepository = {
           placeholder: input.placeholder,
           helpText: input.helpText,
           isRequired: input.isRequired,
+          priceAdjustmentType: input.priceAdjustmentType,
+          priceAdjustmentValue: input.priceAdjustmentValue,
         },
       });
 
@@ -193,6 +205,8 @@ export const optionFieldRepository = {
             label: value.label,
             value: value.value,
             position: value.position,
+            priceAdjustmentType: value.priceAdjustmentType,
+            priceAdjustmentValue: value.priceAdjustmentValue,
           })),
         });
       }
