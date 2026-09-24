@@ -76,20 +76,276 @@ function getTypeLabel(type: BuilderFieldType) {
   );
 }
 
-function valuesToText(field: BuilderFieldDTO) {
-  return field.values
-    .map((value) => {
-      if (value.priceAdjustmentType === "NONE") {
-        return value.label;
-      }
+type ChoiceDraft = {
+  clientId: string;
+  label: string;
+  priceAdjustmentType: PriceAdjustmentType;
+  priceAdjustmentValue: string;
+};
 
-      return [
-        value.label,
-        value.priceAdjustmentType,
-        value.priceAdjustmentValue,
-      ].join("|");
-    })
-    .join("\n");
+function fieldValuesToChoices(
+  field: BuilderFieldDTO,
+): ChoiceDraft[] {
+  return field.values.map((value) => ({
+    clientId: value.id,
+    label: value.label,
+    priceAdjustmentType: value.priceAdjustmentType,
+    priceAdjustmentValue: value.priceAdjustmentValue,
+  }));
+}
+
+function createChoiceDraft(): ChoiceDraft {
+  return {
+    clientId: `new-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}`,
+    label: "",
+    priceAdjustmentType: "NONE",
+    priceAdjustmentValue: "",
+  };
+}
+
+function SortableChoiceRow({
+  choice,
+  onChange,
+  onRemove,
+}: {
+  choice: ChoiceDraft;
+  onChange: (choice: ChoiceDraft) => void;
+  onRemove: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: choice.clientId,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.55 : 1,
+        padding: 12,
+        border:
+          "1px solid var(--p-color-border-secondary)",
+        borderRadius: 10,
+        background: "var(--p-color-bg-surface)",
+      }}
+    >
+      <BlockStack gap="300">
+        <InlineStack
+          gap="300"
+          blockAlign="end"
+          wrap={false}
+        >
+          <button
+            type="button"
+            aria-label="Reorder choice"
+            {...attributes}
+            {...listeners}
+            style={{
+              width: 34,
+              height: 34,
+              flex: "0 0 auto",
+              border:
+                "1px solid var(--p-color-border-secondary)",
+              borderRadius: 8,
+              background:
+                "var(--p-color-bg-surface-secondary)",
+              cursor: isDragging ? "grabbing" : "grab",
+              fontSize: 18,
+              lineHeight: 1,
+            }}
+          >
+            ⋮⋮
+          </button>
+
+          <div style={{ flex: 1 }}>
+            <TextField
+              label="Choice label"
+              value={choice.label}
+              onChange={(label) =>
+                onChange({
+                  ...choice,
+                  label,
+                })
+              }
+              autoComplete="off"
+              placeholder="For example, Premium"
+            />
+          </div>
+
+          <div style={{ minWidth: 190 }}>
+            <Select
+              label="Price adjustment"
+              value={choice.priceAdjustmentType}
+              options={priceAdjustmentOptions}
+              onChange={(value) =>
+                onChange({
+                  ...choice,
+                  priceAdjustmentType:
+                    value as PriceAdjustmentType,
+                  priceAdjustmentValue:
+                    value === "NONE"
+                      ? ""
+                      : choice.priceAdjustmentValue,
+                })
+              }
+            />
+          </div>
+
+          {choice.priceAdjustmentType !== "NONE" ? (
+            <div style={{ width: 145 }}>
+              <TextField
+                label={
+                  choice.priceAdjustmentType ===
+                  "PERCENTAGE"
+                    ? "Percent"
+                    : "Amount"
+                }
+                value={choice.priceAdjustmentValue}
+                onChange={(priceAdjustmentValue) =>
+                  onChange({
+                    ...choice,
+                    priceAdjustmentValue,
+                  })
+                }
+                autoComplete="off"
+                type="number"
+              />
+            </div>
+          ) : null}
+
+          <Button
+            tone="critical"
+            onClick={onRemove}
+          >
+            Remove
+          </Button>
+        </InlineStack>
+      </BlockStack>
+    </div>
+  );
+}
+
+function ChoiceEditor({
+  choices,
+  onChange,
+}: {
+  choices: ChoiceDraft[];
+  onChange: (choices: ChoiceDraft[]) => void;
+}) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 6,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = choices.findIndex(
+      (choice) => choice.clientId === active.id,
+    );
+    const newIndex = choices.findIndex(
+      (choice) => choice.clientId === over.id,
+    );
+
+    if (oldIndex < 0 || newIndex < 0) {
+      return;
+    }
+
+    onChange(arrayMove(choices, oldIndex, newIndex));
+  }
+
+  return (
+    <BlockStack gap="300">
+      <InlineStack
+        align="space-between"
+        blockAlign="center"
+      >
+        <BlockStack gap="050">
+          <Text as="p" fontWeight="semibold">
+            Choices
+          </Text>
+          <Text as="p" tone="subdued">
+            Drag choices to reorder them. Pricing is optional.
+          </Text>
+        </BlockStack>
+
+        <Button
+          onClick={() =>
+            onChange([...choices, createChoiceDraft()])
+          }
+        >
+          Add choice
+        </Button>
+      </InlineStack>
+
+      {choices.length === 0 ? (
+        <Text as="p" tone="subdued">
+          Add at least one choice.
+        </Text>
+      ) : (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={choices.map(
+              (choice) => choice.clientId,
+            )}
+            strategy={verticalListSortingStrategy}
+          >
+            <BlockStack gap="200">
+              {choices.map((choice) => (
+                <SortableChoiceRow
+                  key={choice.clientId}
+                  choice={choice}
+                  onChange={(nextChoice) =>
+                    onChange(
+                      choices.map((item) =>
+                        item.clientId ===
+                        nextChoice.clientId
+                          ? nextChoice
+                          : item,
+                      ),
+                    )
+                  }
+                  onRemove={() =>
+                    onChange(
+                      choices.filter(
+                        (item) =>
+                          item.clientId !==
+                          choice.clientId,
+                      ),
+                    )
+                  }
+                />
+              ))}
+            </BlockStack>
+          </SortableContext>
+        </DndContext>
+      )}
+    </BlockStack>
+  );
 }
 
 function formatAdjustment(
@@ -252,8 +508,8 @@ function SortableFieldEditor({
     );
   const [priceAdjustmentValue, setPriceAdjustmentValue] =
     useState(field.priceAdjustmentValue);
-  const [valuesText, setValuesText] = useState(
-    valuesToText(field),
+  const [choices, setChoices] = useState<ChoiceDraft[]>(
+    fieldValuesToChoices(field),
   );
 
   const {
@@ -494,20 +750,34 @@ function SortableFieldEditor({
                     )}
 
                     {supportsValues ? (
-                      <TextField
-                        label="Choices"
-                        name="valuesText"
-                        value={valuesText}
-                        onChange={setValuesText}
-                        autoComplete="off"
-                        multiline={5}
-                        helpText="One choice per line. Optional pricing format: Label|FIXED|10 or Label|PERCENTAGE|5. Use negative values for discounts."
-                      />
+                      <>
+                        <ChoiceEditor
+                          choices={choices}
+                          onChange={setChoices}
+                        />
+                        <input
+                          type="hidden"
+                          name="valuesJson"
+                          value={JSON.stringify(
+                            choices.map(
+                              ({
+                                label,
+                                priceAdjustmentType,
+                                priceAdjustmentValue,
+                              }) => ({
+                                label,
+                                priceAdjustmentType,
+                                priceAdjustmentValue,
+                              }),
+                            ),
+                          )}
+                        />
+                      </>
                     ) : (
                       <input
                         type="hidden"
-                        name="valuesText"
-                        value=""
+                        name="valuesJson"
+                        value="[]"
                       />
                     )}
                   </FormLayout>
@@ -640,7 +910,9 @@ function AddFieldCard({
     useState<PriceAdjustmentType>("NONE");
   const [priceAdjustmentValue, setPriceAdjustmentValue] =
     useState("");
-  const [valuesText, setValuesText] = useState("");
+  const [choices, setChoices] = useState<ChoiceDraft[]>([
+    createChoiceDraft(),
+  ]);
 
   const supportsValues =
     type === "SELECT" || type === "RADIO";
@@ -798,20 +1070,34 @@ function AddFieldCard({
                   )}
 
                   {supportsValues ? (
-                    <TextField
-                      label="Choices"
-                      name="valuesText"
-                      value={valuesText}
-                      onChange={setValuesText}
-                      autoComplete="off"
-                      multiline={5}
-                      helpText="Enter one choice per line."
-                    />
+                    <>
+                      <ChoiceEditor
+                        choices={choices}
+                        onChange={setChoices}
+                      />
+                      <input
+                        type="hidden"
+                        name="valuesJson"
+                        value={JSON.stringify(
+                          choices.map(
+                            ({
+                              label,
+                              priceAdjustmentType,
+                              priceAdjustmentValue,
+                            }) => ({
+                              label,
+                              priceAdjustmentType,
+                              priceAdjustmentValue,
+                            }),
+                          ),
+                        )}
+                      />
+                    </>
                   ) : (
                     <input
                       type="hidden"
-                      name="valuesText"
-                      value=""
+                      name="valuesJson"
+                      value="[]"
                     />
                   )}
                 </FormLayout>
