@@ -7,14 +7,18 @@ import { authenticate } from "~/shopify.server";
 export async function settingsLoader({
   request,
 }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } =
+    await authenticate.admin(request);
 
   const shop = await ensureShop({
     shopifyDomain: session.shop,
   });
 
   const pricing =
-    await pricingInfrastructureService.getStatus(shop.id);
+    await pricingInfrastructureService.getRuntimeStatus(
+      admin,
+      shop.id,
+    );
 
   return {
     pricing: {
@@ -22,11 +26,15 @@ export async function settingsLoader({
       enabledAt:
         pricing?.pricingEnabledAt?.toISOString() ?? null,
       cartTransformReady: Boolean(
-        pricing?.pricingCartTransformId,
+        pricing?.cartTransformId,
       ),
       addonReady: Boolean(
         pricing?.pricingAddonVariantGid,
       ),
+      expandEligible: pricing.expandEligible,
+      ready: pricing.ready,
+      activeTransformCount:
+        pricing.activeTransformCount,
     },
   };
 }
