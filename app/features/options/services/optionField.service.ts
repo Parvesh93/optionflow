@@ -29,6 +29,7 @@ function parseType(value: string): OptionFieldType {
     "NUMBER",
     "SELECT",
     "RADIO",
+    "BUTTONS",
     "CHECKBOX",
   ];
 
@@ -99,7 +100,11 @@ function parseAdjustmentValue(
 }
 
 function parseValues(type: OptionFieldType, raw: string) {
-  if (type !== "SELECT" && type !== "RADIO") {
+  if (
+    type !== "SELECT" &&
+    type !== "RADIO" &&
+    type !== "BUTTONS"
+  ) {
     return [];
   }
 
@@ -296,7 +301,9 @@ export const optionFieldService = {
     const values = parseValues(type, input.valuesJson);
 
     const fieldPriceAdjustmentType =
-      type === "SELECT" || type === "RADIO"
+      type === "SELECT" ||
+      type === "RADIO" ||
+      type === "BUTTONS"
         ? "NONE"
         : parseAdjustmentType(
             input.priceAdjustmentType || "NONE",
@@ -406,10 +413,11 @@ export const optionFieldService = {
     if (
       sourceField.type !== "SELECT" &&
       sourceField.type !== "RADIO" &&
+      sourceField.type !== "BUTTONS" &&
       sourceField.type !== "CHECKBOX"
     ) {
       throw new OptionFieldValidationError(
-        "Conditions currently support dropdown, radio and checkbox source fields.",
+        "Conditions currently support dropdown, radio, button and checkbox source fields.",
       );
     }
 
