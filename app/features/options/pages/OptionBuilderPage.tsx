@@ -61,6 +61,7 @@ const typeOptions = [
   { label: "Number", value: "NUMBER" },
   { label: "Dropdown", value: "SELECT" },
   { label: "Radio buttons", value: "RADIO" },
+  { label: "Buttons", value: "BUTTONS" },
   { label: "Checkbox", value: "CHECKBOX" },
 ];
 
@@ -397,7 +398,7 @@ function FieldPreview({
     );
   }
 
-  if (field.type === "RADIO") {
+  if (field.type === "RADIO" || field.type === "BUTTONS") {
     return (
       <BlockStack gap="200">
         <Text as="p" fontWeight="semibold">
@@ -498,6 +499,7 @@ function ConditionEditor({
       candidate.id !== field.id &&
       (candidate.type === "SELECT" ||
         candidate.type === "RADIO" ||
+        candidate.type === "BUTTONS" ||
         candidate.type === "CHECKBOX"),
   );
 
@@ -564,7 +566,7 @@ function ConditionEditor({
           Conditional visibility
         </Text>
         <Text as="p" tone="subdued">
-          Add a dropdown, radio or checkbox field before
+          Add a dropdown, radio, button or checkbox field before
           creating a visibility condition.
         </Text>
       </BlockStack>
@@ -750,7 +752,9 @@ function SortableFieldEditor({
 
   const busy = fetcher.state !== "idle";
   const supportsValues =
-    type === "SELECT" || type === "RADIO";
+    type === "SELECT" ||
+    type === "RADIO" ||
+    type === "BUTTONS";
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -1155,7 +1159,9 @@ function AddFieldCard({
   ]);
 
   const supportsValues =
-    type === "SELECT" || type === "RADIO";
+    type === "SELECT" ||
+    type === "RADIO" ||
+    type === "BUTTONS";
 
   return (
     <Card>
@@ -1491,7 +1497,7 @@ export default function OptionBuilderPage() {
                 >
                   <p>
                     Start with a text field, dropdown,
-                    radio choice, number field, textarea or
+                    radio/button choice, number field, textarea or
                     checkbox.
                   </p>
                 </EmptyState>
