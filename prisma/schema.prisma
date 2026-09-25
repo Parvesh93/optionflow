@@ -57,6 +57,7 @@ enum OptionFieldType {
   NUMBER
   SELECT
   RADIO
+  BUTTONS
   CHECKBOX
 }
 
