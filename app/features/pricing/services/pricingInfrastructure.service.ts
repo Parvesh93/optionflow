@@ -310,6 +310,86 @@ async function setMetafields(
   );
 }
 
+async function getRuntimePricingStatus(
+  admin: AdminGraphqlClient,
+) {
+  const response = await admin.graphql(
+    `#graphql
+      query OptionFlowPricingRuntimeStatus {
+        shop {
+          features {
+            cartTransform {
+              eligibleOperations {
+                expandOperation
+                mergeOperation
+                updateOperation
+              }
+            }
+          }
+        }
+        cartTransforms(first: 10) {
+          nodes {
+            id
+            functionId
+            blockOnFailure
+          }
+        }
+      }
+    `,
+  );
+
+  const json = (await response.json()) as {
+    data?: {
+      shop?: {
+        features?: {
+          cartTransform?: {
+            eligibleOperations?: {
+              expandOperation?: boolean;
+              mergeOperation?: boolean;
+              updateOperation?: boolean;
+            };
+          };
+        };
+      };
+      cartTransforms?: {
+        nodes?: Array<{
+          id: string;
+          functionId: string;
+          blockOnFailure: boolean;
+        }>;
+      };
+    };
+    errors?: Array<{
+      message?: string;
+    }>;
+  };
+
+  if (json.errors?.length) {
+    throw new Error(
+      json.errors
+        .map((error) => error.message || "Shopify API error")
+        .join(" "),
+    );
+  }
+
+  const operations =
+    json.data?.shop?.features?.cartTransform
+      ?.eligibleOperations;
+  const transforms =
+    json.data?.cartTransforms?.nodes ?? [];
+
+  return {
+    expandEligible:
+      operations?.expandOperation ?? false,
+    mergeEligible:
+      operations?.mergeOperation ?? false,
+    updateEligible:
+      operations?.updateOperation ?? false,
+    cartTransformId: transforms[0]?.id ?? null,
+    activeTransformCount: transforms.length,
+  };
+}
+
 function buildPricingConfig(
   optionSet: {
     id: string;
@@ -384,6 +464,25 @@ export const pricingInfrastructureService = {
     });
   },
 
+  async getRuntimeStatus(
+    admin: AdminGraphqlClient,
+    shopId: string,
+  ) {
+    const [stored, runtime] = await Promise.all([
+      this.getStatus(shopId),
+      getRuntimePricingStatus(admin),
+    ]);
+
+    return {
+      ...stored,
+      ...runtime,
+      ready:
+        Boolean(stored?.pricingAddonVariantGid) &&
+        Boolean(runtime.cartTransformId) &&
+        runtime.expandEligible,
+    };
+  },
+
   async enable(
     admin: AdminGraphqlClient,
     shopId: string,
@@ -409,8 +508,17 @@ export const pricingInfrastructureService = {
       await publishAddonProduct(admin, productId);
     }
 
+    const runtime =
+      await getRuntimePricingStatus(admin);
+
+    if (!runtime.expandEligible) {
+      throw new Error(
+        "This store is not eligible for Shopify Cart Transform expand operations.",
+      );
+    }
+
     let cartTransformId =
-      shop.pricingCartTransformId;
+      runtime.cartTransformId;
 
     if (!cartTransformId) {
       cartTransformId = await createCartTransform(
@@ -458,18 +566,10 @@ export const pricingInfrastructureService = {
     shopId: string,
     optionSetId: string,
   ) {
-    const shop = await prisma.shop.findUnique({
-      where: {
-        id: shopId,
-      },
-      select: {
-        pricingEnabledAt: true,
-      },
-    });
-
-    if (!shop?.pricingEnabledAt) {
-      return;
-    }
+    await pricingInfrastructureService.enable(
+      admin,
+      shopId,
+    );
 
     const optionSet = await prisma.optionSet.findFirst({
       where: {
