@@ -54,11 +54,11 @@
       return control.checked ? "true" : "";
     }
 
-    if (field.type === "RADIO") {
-      return (
-        q(control, 'input[type="radio"]:checked')
-          ?.value || ""
-      );
+    if (
+      field.type === "RADIO" ||
+      field.type === "BUTTONS"
+    ) {
+      return q(control, 'input:checked')?.value || "";
     }
 
     return control.value || "";
@@ -71,11 +71,11 @@
       return control.checked ? "Yes" : "";
     }
 
-    if (field.type === "RADIO") {
-      const checked = q(
-        control,
-        'input[type="radio"]:checked',
-      );
+    if (
+      field.type === "RADIO" ||
+      field.type === "BUTTONS"
+    ) {
+      const checked = q(control, 'input:checked');
       return (
         checked?.dataset.optionflowLabel ||
         checked?.value ||
@@ -173,13 +173,22 @@
         });
 
         wrap.appendChild(control);
-      } else if (field.type === "RADIO") {
+      } else if (
+        field.type === "RADIO" ||
+        field.type === "BUTTONS"
+      ) {
         control = document.createElement("div");
-        control.className = "optionflow-choices";
+        control.className =
+          field.type === "BUTTONS"
+            ? "optionflow-buttons"
+            : "optionflow-choices";
 
         field.values.forEach((item) => {
           const label = document.createElement("label");
-          label.className = "optionflow-choice";
+          label.className =
+            field.type === "BUTTONS"
+              ? "optionflow-button"
+              : "optionflow-choice";
 
           const input = document.createElement("input");
           input.type = "radio";
