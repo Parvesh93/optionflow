@@ -4,6 +4,7 @@ export type BuilderFieldType =
   | "NUMBER"
   | "SELECT"
   | "RADIO"
+  | "BUTTONS"
   | "CHECKBOX";
 
 export type PriceAdjustmentType =
