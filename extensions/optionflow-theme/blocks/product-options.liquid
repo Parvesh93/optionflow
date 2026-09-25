@@ -2,6 +2,8 @@
   class="optionflow-product-options"
   data-optionflow-root
   data-optionflow-product-gid="gid://shopify/Product/{{ product.id }}"
+  data-optionflow-base-price="{{ product.selected_or_first_available_variant.price }}"
+  data-optionflow-currency="{{ cart.currency.iso_code | default: shop.currency | escape }}"
   data-optionflow-show-title="{{ block.settings.show_title }}"
 >
   <div class="optionflow-product-options__loading">
