@@ -151,7 +151,8 @@ function calculateAdjustment(
 
     if (
       field.type === "SELECT" ||
-      field.type === "RADIO"
+      field.type === "RADIO" ||
+      field.type === "BUTTONS"
     ) {
       const option = Array.isArray(field.values)
         ? field.values.find(
