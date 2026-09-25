@@ -74,3 +74,34 @@
 .optionflow-choice input {
   margin: 0;
 }
+
+.optionflow-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.optionflow-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0.65rem 1rem;
+  border: 1px solid rgba(var(--color-foreground, 18, 18, 18), 0.25);
+  border-radius: var(--buttons-radius, 6px);
+  background: rgb(var(--color-background, 255, 255, 255));
+  color: rgb(var(--color-foreground, 18, 18, 18));
+  cursor: pointer;
+}
+
+.optionflow-button input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.optionflow-button:has(input:checked) {
+  border-color: rgb(var(--color-foreground, 18, 18, 18));
+  box-shadow: 0 0 0 1px rgb(var(--color-foreground, 18, 18, 18));
+}
