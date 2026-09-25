@@ -398,7 +398,42 @@ function FieldPreview({
     );
   }
 
-  if (field.type === "RADIO" || field.type === "BUTTONS") {
+  if (field.type === "BUTTONS") {
+    return (
+      <BlockStack gap="200">
+        <Text as="p" fontWeight="semibold">
+          {field.label}
+          {field.isRequired ? " *" : ""}
+        </Text>
+
+        {field.values.length > 0 ? (
+          <InlineStack gap="200" wrap>
+            {field.values.map((value) => (
+              <Button key={value.id} disabled>
+                {`${value.label}${
+                  formatAdjustment(
+                    value.priceAdjustmentType,
+                    value.priceAdjustmentValue,
+                  )
+                    ? ` (${formatAdjustment(
+                        value.priceAdjustmentType,
+                        value.priceAdjustmentValue,
+                      )})`
+                    : ""
+                }`}
+              </Button>
+            ))}
+          </InlineStack>
+        ) : (
+          <Text as="p" tone="subdued">
+            Add choices to preview this field.
+          </Text>
+        )}
+      </BlockStack>
+    );
+  }
+
+  if (field.type === "RADIO") {
     return (
       <BlockStack gap="200">
         <Text as="p" fontWeight="semibold">
