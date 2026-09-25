@@ -96,11 +96,30 @@ export default function SettingsPage() {
 
             {pricing.enabled ? (
               <BlockStack gap="150">
+                {!pricing.ready ? (
+                  <Banner tone="critical">
+                    <p>
+                      Shopify pricing is not fully active yet.
+                      Re-enable pricing below after deploying
+                      the latest app version.
+                    </p>
+                  </Banner>
+                ) : null}
                 <Text as="p">
                   Pricing function:{" "}
                   {pricing.cartTransformReady
-                    ? "Ready"
+                    ? "Active"
                     : "Needs attention"}
+                </Text>
+                <Text as="p">
+                  Cart expand support:{" "}
+                  {pricing.expandEligible
+                    ? "Supported"
+                    : "Not supported"}
+                </Text>
+                <Text as="p">
+                  Active transforms:{" "}
+                  {pricing.activeTransformCount}
                 </Text>
                 <Text as="p">
                   Pricing component:{" "}
@@ -108,6 +127,20 @@ export default function SettingsPage() {
                     ? "Ready"
                     : "Needs attention"}
                 </Text>
+                <Form method="post">
+                  <input
+                    type="hidden"
+                    name="intent"
+                    value="enablePricing"
+                  />
+                  <Button
+                    submit
+                    loading={busy}
+                  >
+                    Repair / resync pricing
+                  </Button>
+                </Form>
+
                 {pricing.enabledAt ? (
                   <Text as="p" tone="subdued">
                     Enabled{" "}
